@@ -5,8 +5,7 @@
     "version": "0.2.0",
     "configurations": [
             {
-
-                "preLaunchTask": "cargo run",
+                "preLaunchTask": "preattach",
                 // more info at: https://github.com/Marus/cortex-debug/blob/master/package.json
                 "name": "Attach",
                 "type": "cortex-debug",
