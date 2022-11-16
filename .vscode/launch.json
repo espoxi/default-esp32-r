@@ -6,7 +6,7 @@
     "configurations": [
             {
 
-                "preLaunchTask": "echotest",
+                "preLaunchTask": "cargo run",
                 // more info at: https://github.com/Marus/cortex-debug/blob/master/package.json
                 "name": "Attach",
                 "type": "cortex-debug",
