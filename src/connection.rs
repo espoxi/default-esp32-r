@@ -5,10 +5,12 @@ use std::{
     time::Duration,
 };
 
-
 // use bsc::{temp_sensor::BoardTempSensor, wifi::wifi};
 use embedded_svc::{
-    http::{server::{Response, FnHandler}, Method},
+    http::{
+        server::{FnHandler, Response},
+        Method,
+    },
     io::Write,
 };
 
@@ -39,11 +41,15 @@ pub(crate) fn start_server<'a>() -> anyhow::Result<()> {
 
     let server_config = Configuration::default();
     let mut server = EspHttpServer::new(&server_config)?;
-    server.handler("/",Method::Get ,FnHandler::new(|request| {
-        let html = index_html();
-        request.into_response(200,Some(html.as_str()) , &[]);
-        Ok(())
-    }))?;
+    server.fn_handler(
+        "/",
+        Method::Get,
+        |request| {
+            let html = index_html();
+            request.into_response(200, Some(html.as_str()), &[]).unwrap();//or(anyhow::bail!("Failed to create response"));
+            Ok(())
+        },
+    )?;
 
     println!("server awaiting connection");
 

@@ -19,7 +19,7 @@ pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
 }
 
-pub fn wifi<'a>(ssid: &'a str, psk: &str) -> anyhow::Result<Wifi<'a>> {
+pub fn wifi<'a>(ssid: &str, psk: &str) -> anyhow::Result<Wifi<'a>> {
     let mut auth_method = AuthMethod::WPA2Personal; // Todo: add this setting - router dependent
     if ssid.is_empty() {
         anyhow::bail!("missing WiFi name")
