@@ -40,6 +40,7 @@ impl<'a> Connection<'a> {
 
         let server_config = Configuration::default();
         let mut server = EspHttpServer::new(&server_config)?;
+        //FIXME: make this work
         server.fn_handler("/", Method::Get, |request| {
             let html = Self::index_html();
             println!("someone requested the index page");
@@ -53,6 +54,7 @@ impl<'a> Connection<'a> {
 
 
         // // prevent program from exiting
+        //TODO: remove this if possible, or start a new thread with stuff
         loop {
             // let current_temperature = temp_sensor.read_owning_peripherals();
             // println!("board temperature: {:.2}", current_temperature);
