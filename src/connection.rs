@@ -1,8 +1,10 @@
 use core::str;
-use std::{thread::sleep, time::Duration};
+// use std::{thread::sleep, time::Duration};
 
 // use bsc::{temp_sensor::BoardTempSensor, wifi::wifi};
 use embedded_svc::http::Method;
+
+use esp_idf_hal::modem::Modem;
 
 mod wifi;
 
@@ -23,11 +25,11 @@ pub struct Connection<'a> {
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn start_server() -> anyhow::Result<Self> {
-        esp_idf_sys::link_patches();
+    pub(crate) fn start_server(modem : Modem) -> anyhow::Result<Self> {
+        // esp_idf_sys::link_patches();
 
         // let sys_loop_stack = Arc::new(EspSysLoopStack::new()?);
-        let wifi = match wifi::wifi(CONFIG.wifi_ssid, CONFIG.wifi_psk) {
+        let wifi = match wifi::wifi(CONFIG.wifi_ssid, CONFIG.wifi_psk,modem) {
             Ok(wifi) => Some(wifi),
             Err(e) => {
                 println!("Failed to connect to WiFi: {:?}", e);

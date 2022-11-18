@@ -11,20 +11,22 @@ fn main() {
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
 
-    let conn : Option<Connection<'static>> = match Connection::start_server() {
+    let peripherals = Peripherals::take().unwrap();
+
+
+    let conn : Option<Connection<'static>> = match Connection::start_server(peripherals.modem) {
         Ok(c) => Some(c),
         Err(e) => {println!("Failed to start server: {:?}", e); None}
     };
 
-    // let peripherals = Peripherals::take().unwrap();
-    // let mut internal_led = PinDriver::output(peripherals.pins.gpio2).unwrap();
+    let mut internal_led = PinDriver::output(peripherals.pins.gpio2).unwrap();
 
     loop {
-        // internal_led.set_high().unwrap();
+        internal_led.set_high().unwrap();
         // we are sleeping here to make sure the watchdog isn't triggered
         FreeRtos::delay_ms(500);
 
-        // internal_led.set_low().unwrap();
+        internal_led.set_low().unwrap();
         FreeRtos::delay_ms(500);
     }
 }

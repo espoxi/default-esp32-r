@@ -4,22 +4,26 @@ use anyhow::bail;
 use embedded_svc::wifi::{
     self,
     AuthMethod,
-    ClientConfiguration, //ClientConnectionStatus, ClientIpStatus, ClientStatus,
-    Wifi as _, AccessPointConfiguration,
+    // ClientConfiguration, //ClientConnectionStatus, ClientIpStatus, ClientStatus,
+    Wifi as _, 
+    AccessPointConfiguration,
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
 
-use esp_idf_hal::peripherals::Peripherals;
+use esp_idf_hal::{
+    // peripherals::Peripherals, 
+    modem::Modem,
+};
 
 use log::info;
-use std::time::Duration;
+// use std::time::Duration;
 
 #[allow(unused)]
 pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
 }
 
-pub fn wifi<'a>(ssid: &str, psk: &str) -> anyhow::Result<Wifi<'a>> {
+pub fn wifi<'a>(ssid: &str, psk: &str, modem: Modem) -> anyhow::Result<Wifi<'a>> {
     let mut auth_method = AuthMethod::WPAWPA2Personal; // Todo: add this setting - router dependent
     if ssid.is_empty() {
         bail!("missing WiFi name")
@@ -37,10 +41,11 @@ pub fn wifi<'a>(ssid: &str, psk: &str) -> anyhow::Result<Wifi<'a>> {
     // )?);
 
     let mut wifi = EspWifi::new(
-        match Peripherals::take(){
-            Some(p) => p,
-            None => bail!("Failed to take peripherals"),
-        }.modem,
+        // match Peripherals::take(){
+        //     Some(p) => p,
+        //     None => bail!("Failed to take peripherals"),
+        // }.
+        modem,
         EspSystemEventLoop::take().unwrap(),//_or_else(return Err(anyhow::anyhow!("No system event loop"))),
         EspDefaultNvsPartition::take().ok(),
     )?;
