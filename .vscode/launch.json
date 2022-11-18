@@ -1,38 +1,30 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-            {
-                "preLaunchTask": "preattach",
-                // more info at: https://github.com/Marus/cortex-debug/blob/master/package.json
-                "name": "Attach",
-                "type": "cortex-debug",
-                "request": "attach", // attach instead of launch, because otherwise flash write is attempted, but fails
-                "cwd": "${workspaceRoot}",
-                "executable": "target/xtensa-esp32-none-elf/debug/.....",
-                "servertype": "openocd",
-                "interface": "jtag",
-                "svdFile": "../../esp-pacs/esp32/svd/esp32.svd",
-                "toolchainPrefix": "xtensa-esp32-elf",
-                "openOCDPreConfigLaunchCommands": [
-                    "set ESP_RTOS none"
-                ],
-                "serverpath": "C:/Espressif/tools/openocd-esp32/v0.11.0-esp32-20220411/openocd-esp32/bin/openocd.exe",
-                "configFiles": [
-                    "board/esp32-wrover-kit-3.3v.cfg"
-                ],
-                "overrideAttachCommands": [
-                    "set remote hardware-watchpoint-limit 2",
-                    "mon halt",
-                    "flushregs"
-                ],
-                "overrideRestartCommands": [
-                    "mon reset halt",
-                    "flushregs",
-                    "c",
-                ]
-            },
-        ]
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "preLaunchTask": "preattach",
+      // more info at: https://github.com/Marus/cortex-debug/blob/master/package.json
+      "name": "Attach",
+      "type": "cortex-debug",
+      "request": "attach", // attach instead of launch, because otherwise flash write is attempted, but fails
+      "cwd": "${workspaceRoot}",
+
+      "executable": "target/current.elf",
+      "servertype": "openocd",
+      "interface": "jtag",
+      "svdFile": "../esp32/svd/esp32.svd",
+      "toolchainPrefix": "xtensa-esp32-elf",
+      "openOCDPreConfigLaunchCommands": ["set ESP_RTOS none"],
+      "configFiles": ["board/esp32-wrover-kit-3.3v.cfg"],
+      "overrideAttachCommands": [
+        "set remote hardware-watchpoint-limit 2",
+        "mon halt",
+        "flushregs"
+      ],
+      "overrideRestartCommands": ["mon reset halt", "flushregs", "c"]
     }
+  ]
+}

@@ -6,7 +6,9 @@
             "type": "shell",
             "command": "cargo", // note: full path to the cargo
             "args": [
-                "run",
+                "espflash",
+                "--monitor",
+                "/dev/cu.usbserial-0001",
                 // "--release",
                 // "--",
                 // "arg1"
