@@ -19,6 +19,7 @@ pub struct Config {
 
 pub struct Connection<'a> {
     wifi: Option<wifi::Wifi<'a>>,
+    server: EspHttpServer,
 }
 
 impl<'a> Connection<'a> {
@@ -26,19 +27,13 @@ impl<'a> Connection<'a> {
         esp_idf_sys::link_patches();
 
         // let sys_loop_stack = Arc::new(EspSysLoopStack::new()?);
-
-        let conn = Connection {
-            wifi: match wifi::wifi(CONFIG.wifi_ssid, CONFIG.wifi_psk) {
-                Ok(wifi) => Some(wifi),
-                Err(e) => {
-                    println!("Failed to connect to WiFi: {:?}", e);
-                    None
-                }
-            },
+        let wifi = match wifi::wifi(CONFIG.wifi_ssid, CONFIG.wifi_psk) {
+            Ok(wifi) => Some(wifi),
+            Err(e) => {
+                println!("Failed to connect to WiFi: {:?}", e);
+                None
+            }
         };
-
-        // let mut temp_sensor = BoardTempSensor::new_taking_peripherals();
-
         let server_config = Configuration::default();
         let mut server = EspHttpServer::new(&server_config)?;
         //FIXME: make this work
@@ -63,17 +58,25 @@ impl<'a> Connection<'a> {
                 Ok(())
             })?;
 
+        let conn = Connection {
+            wifi,
+            server,
+        };
+
+        // let mut temp_sensor = BoardTempSensor::new_taking_peripherals();
+
+    
         println!("server awaiting connection");
 
         // // prevent program from exiting
-        //TODO: remove this if possible, or start a new thread with stuff
-        loop {
-            // let current_temperature = temp_sensor.read_owning_peripherals();
-            // println!("board temperature: {:.2}", current_temperature);
-            // println!("");
-            // x.;
-            sleep(Duration::from_millis(1000));
-        }
+        // //TO-DO: remove this if possible, or start a new thread with stuff
+        // loop {
+        //     // let current_temperature = temp_sensor.read_owning_peripherals();
+        //     // println!("board temperature: {:.2}", current_temperature);
+        //     // println!("");
+        //     // x.;
+        //     sleep(Duration::from_millis(1000));
+        // }
         Ok(conn)
     }
 
