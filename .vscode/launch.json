@@ -7,12 +7,12 @@
     {
       "preLaunchTask": "preattach",
       // more info at: https://github.com/Marus/cortex-debug/blob/master/package.json
-      "name": "Attach",
+      "name": "Run and attach",
       "type": "cortex-debug",
       "request": "attach", // attach instead of launch, because otherwise flash write is attempted, but fails
       "cwd": "${workspaceRoot}",
 
-      "executable": "target/current.elf",
+      "executable": "target/espoxi.elf",
       "servertype": "openocd",
       "interface": "jtag",
       "svdFile": "../esp32/svd/esp32.svd",
@@ -25,6 +25,10 @@
         "flushregs"
       ],
       "overrideRestartCommands": ["mon reset halt", "flushregs", "c"]
+    },
+    {
+      "name": "run",
+      "preLaunchTask": "preattach",
     }
   ]
 }

@@ -5,7 +5,7 @@ use embedded_svc::wifi::{
     self,
     AuthMethod,
     ClientConfiguration, //ClientConnectionStatus, ClientIpStatus, ClientStatus,
-    Wifi as _,
+    Wifi as _, AccessPointConfiguration,
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
 
@@ -20,9 +20,9 @@ pub struct Wifi<'a> {
 }
 
 pub fn wifi<'a>(ssid: &str, psk: &str) -> anyhow::Result<Wifi<'a>> {
-    let mut auth_method = AuthMethod::WPA2Personal; // Todo: add this setting - router dependent
+    let mut auth_method = AuthMethod::WPAWPA2Personal; // Todo: add this setting - router dependent
     if ssid.is_empty() {
-        anyhow::bail!("missing WiFi name")
+        bail!("missing WiFi name")
     }
     if psk.is_empty() {
         auth_method = AuthMethod::None;
@@ -35,38 +35,50 @@ pub fn wifi<'a>(ssid: &str, psk: &str) -> anyhow::Result<Wifi<'a>> {
     //     "defaultns",
     //     true,
     // )?);
+
     let mut wifi = EspWifi::new(
-        Peripherals::take().unwrap().modem,
+        match Peripherals::take(){
+            Some(p) => p,
+            None => bail!("Failed to take peripherals"),
+        }.modem,
         EspSystemEventLoop::take().unwrap(),//_or_else(return Err(anyhow::anyhow!("No system event loop"))),
         EspDefaultNvsPartition::take().ok(),
     )?;
 
-    info!("Searching for Wifi network {}", ssid);
+    // info!("Searching for Wifi network {}", ssid);
 
-    let ap_infos = wifi.scan()?;
+    // let ap_infos = wifi.scan()?;
 
-    let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
+    // let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
 
-    let channel = if let Some(ours) = ours {
-        info!(
-            "Found configured access point {} on channel {}",
-            ssid, ours.channel
-        );
-        Some(ours.channel)
-    } else {
-        info!(
-            "Configured access point {} not found during scanning, will go with unknown channel",
-            ssid
-        );
-        None
-    };
+    // let channel = if let Some(ours) = ours {
+    //     info!(
+    //         "Found configured access point {} on channel {}",
+    //         ssid, ours.channel
+    //     );
+    //     Some(ours.channel)
+    // } else {
+    //     info!(
+    //         "Configured access point {} not found during scanning, will go with unknown channel",
+    //         ssid
+    //     );
+    //     None
+    // };
 
-    info!("setting Wifi configuration");
-    wifi.set_configuration(&wifi::Configuration::Client(ClientConfiguration {
+    // info!("setting Wifi configuration");
+    // wifi.set_configuration(&wifi::Configuration::Client(ClientConfiguration {
+    //     ssid: ssid.into(),
+    //     password: psk.into(),
+    //     channel,
+    //     auth_method,
+    //     ..Default::default()
+    // }))?;
+
+    wifi.set_configuration(&wifi::Configuration::AccessPoint(AccessPointConfiguration {
         ssid: ssid.into(),
         password: psk.into(),
-        channel,
-        auth_method,
+        auth_method: auth_method,
+
         ..Default::default()
     }))?;
 

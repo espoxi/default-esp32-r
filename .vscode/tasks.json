@@ -13,10 +13,7 @@
                 // "--",
                 // "arg1"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+
         },
         {
             "label": "export espup paths",
@@ -39,6 +36,10 @@
                 "export espup paths",
                 "cargo run"
             ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }
