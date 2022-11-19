@@ -12,7 +12,7 @@ use embedded_svc::wifi::{
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
 
-use esp_idf_hal::modem::Modem;
+use esp_idf_hal::{delay::FreeRtos, modem::Modem};
 
 use log::info;
 
@@ -77,10 +77,10 @@ impl<'a> Wifi<'a> {
         println!("Searching for Wifi network {}", ssid);
         let ap_infos = self.esp_wifi.scan()?;
         let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
-        let channel = if let Some(ours) = ours {
+        let channel = if let Some(ours) = &ours {
             println!(
-                "Found configured access point {} on channel {}",
-                ssid, ours.channel
+                "Found configured access point {} on channel {}, strength:{}\n we will try to cennect via {}",
+                ssid, ours.channel, ours.signal_strength, ours.auth_method
             );
             Some(ours.channel)
         } else {
@@ -93,13 +93,36 @@ impl<'a> Wifi<'a> {
         let client_config = ClientConfiguration {
             ssid: ssid.into(),
             password: psk.into(),
-            auth_method,
+            auth_method: match ours {
+                Some(ref o) => o.auth_method,
+                None => auth_method,
+            },
             channel,
             ..Default::default()
         };
         self.config.client = Some(client_config);
 
         self.load_cfg()?;
+
+        self.esp_wifi.connect()?;
+
+        let d = self.esp_wifi.driver_mut();
+        if d.is_sta_enabled().unwrap() {
+            println!("activated client, connecting");
+            while !d.is_sta_connected().unwrap_or(false) {
+                match d.connect() {
+                    std::result::Result::Ok(()) => {
+                        break;
+                    }
+                    Err(_e) => {
+                        // println!("Error connecting: {}", e);
+                        print!(".");
+                        FreeRtos::delay_ms(500);
+                    }
+                };
+            }
+            println!("connected to {}", ssid);
+        }
 
         // self.esp_wifi.wait_status_with_timeout(Duration::from_secs(2100), |status| {
         //     !status.is_transitional()
@@ -129,18 +152,31 @@ impl<'a> Wifi<'a> {
 
     fn load_cfg(&mut self) -> anyhow::Result<()> {
         let config = match self.config.clone() {
-            WConfig{client: None, ap: None} => match self.esp_wifi.stop(){
+            WConfig {
+                client: None,
+                ap: None,
+            } => match self.esp_wifi.stop() {
                 std::result::Result::Ok(()) => return Ok(()),
                 Err(e) => bail!("Could not stop Wifi: {:?}", e),
             },
-            WConfig{client: Some(c), ap: None} => wifi::Configuration::Client(c),
-            WConfig{client: None, ap: Some(ap)} => wifi::Configuration::AccessPoint(ap),
-            WConfig{client: Some(c), ap: Some(ap)} => wifi::Configuration::Mixed(c, ap),
+            WConfig {
+                client: Some(c),
+                ap: None,
+            } => wifi::Configuration::Client(c),
+            WConfig {
+                client: None,
+                ap: Some(ap),
+            } => wifi::Configuration::AccessPoint(ap),
+            WConfig {
+                client: Some(c),
+                ap: Some(ap),
+            } => wifi::Configuration::Mixed(c, ap),
         };
 
         if let Err(e) = self.esp_wifi.set_configuration(&config) {
             bail!("Error setting wifi config: {:?}", e)
         } else {
+            println!("Restarting Wifi withz new config");
             self.esp_wifi.start()?;
             Ok(())
         }
