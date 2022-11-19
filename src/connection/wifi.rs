@@ -10,11 +10,24 @@ use embedded_svc::wifi::{
     // ClientConfiguration, //ClientConnectionStatus, ClientIpStatus, ClientStatus,
     // Wifi as _,
 };
-use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop,
+    netif::{EspNetif, NetifConfiguration, NetifStack},
+    nvs::EspDefaultNvsPartition,
+    wifi::{EspWifi, WifiDriver},
+};
 
 use esp_idf_hal::{delay::FreeRtos, modem::Modem};
 
-use log::info;
+// use log::info;
+
+#[toml_cfg::toml_config]
+pub struct Config {
+    #[default("")]
+    wifi_ssid: &'static str,
+    // #[default("")]
+    // wifi_psk: &'static str,
+}
 
 #[derive(Clone, Debug)]
 struct WConfig {
@@ -30,11 +43,34 @@ pub struct Wifi<'a> {
 impl<'a> Wifi<'a> {
     pub fn new(modem: Modem) -> anyhow::Result<Self> {
         //let mut
-        let esp_wifi = EspWifi::new(
-            modem,
-            EspSystemEventLoop::take().unwrap(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
-            EspDefaultNvsPartition::take().ok(),
+        // let esp_wifi = EspWifi::new(
+        //     modem,
+        //     EspSystemEventLoop::take().unwrap(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
+        //     EspDefaultNvsPartition::take().ok(),
+        // )?;
+
+        //FIXME: it is still displayed as default "espressif", not CONFIG.wifi_ssid
+        let ipv4_client_cfg =
+            embedded_svc::ipv4::ClientConfiguration::DHCP(embedded_svc::ipv4::DHCPClientSettings {
+                hostname: Some(heapless::String::<30>::from(CONFIG.wifi_ssid)),
+                ..Default::default()
+            });
+        let new_c = NetifConfiguration {
+            ip_configuration: embedded_svc::ipv4::Configuration::Client(ipv4_client_cfg),
+            ..NetifConfiguration::wifi_default_client()
+        };
+
+        let esp_wifi = EspWifi::wrap_all(
+            WifiDriver::new(
+                modem,
+                EspSystemEventLoop::take().unwrap(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
+                EspDefaultNvsPartition::take().ok(),
+            )?,
+            EspNetif::new_with_conf(&new_c)?,
+            EspNetif::new(NetifStack::Ap)?,
         )?;
+        // let _ = core::mem::replace(&mut esp_wifi.sta_netif(), &EspNetif::new_with_conf(&new_c)?);
+
         Ok(Self {
             esp_wifi,
             config: WConfig {
@@ -43,6 +79,7 @@ impl<'a> Wifi<'a> {
             },
         })
     }
+    #[allow(dead_code)]
     pub fn disable_ap(&mut self) -> anyhow::Result<()> {
         self.config.ap = None;
         self.load_cfg()?;
@@ -65,6 +102,8 @@ impl<'a> Wifi<'a> {
         Ok(())
         // Ok(*self)
     }
+
+    #[allow(dead_code)]
     pub fn disable_client(&mut self) -> anyhow::Result<()> {
         self.config.client = None;
         self.load_cfg()?;
@@ -105,6 +144,9 @@ impl<'a> Wifi<'a> {
         self.load_cfg()?;
 
         self.esp_wifi.connect()?;
+        self.esp_wifi
+            .sta_netif_mut()
+            .set_mac(&[0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC])?;
 
         let d = self.esp_wifi.driver_mut();
         if d.is_sta_enabled().unwrap() {
@@ -121,7 +163,16 @@ impl<'a> Wifi<'a> {
                     }
                 };
             }
-            println!("connected to {}", ssid);
+            println!(
+                "connected to {} as {} ({})",
+                ssid,
+                self.esp_wifi
+                    .sta_netif_mut()
+                    .get_hostname()
+                    .unwrap_or(heapless::String::<30>::from("unknown"))
+                    .as_str(),
+                self.esp_wifi.sta_netif_mut().get_ip_info().unwrap().ip,
+            );
         }
 
         // self.esp_wifi.wait_status_with_timeout(Duration::from_secs(2100), |status| {

@@ -19,7 +19,7 @@ use embedded_svc::{
 use esp_idf_hal::modem::Modem;
 
 mod wifi;
-use log::info;
+// use log::info;
 use wifi::Wifi;
 
 use esp_idf_svc::http::{
@@ -48,7 +48,7 @@ fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<
     // println!("{:x?}", buf);
     let body_str = match std::str::from_utf8(&buf[0..len]) {
         Ok(s) => {
-            println!("/connect to: {}", s);
+            // println!("/connect to: {}", s);
             s
         }
         Err(e) => {
