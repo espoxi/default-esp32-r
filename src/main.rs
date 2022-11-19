@@ -14,8 +14,8 @@ fn main() {
     let peripherals = Peripherals::take().unwrap();
 
 
-    let conn : Option<Connection<'static>> = match Connection::start_server(peripherals.modem) {
-        Ok(c) => Some(c),
+    let conn : Option<Connection<'static>> = match Connection::new(peripherals.modem) {
+        Ok(mut c) => {c.start_server();Some(c)},
         Err(e) => {println!("Failed to start server: {:?}", e); None}
     };
 
