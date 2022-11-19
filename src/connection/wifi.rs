@@ -175,28 +175,6 @@ impl<'a> Wifi<'a> {
             );
         }
 
-        // self.esp_wifi.wait_status_with_timeout(Duration::from_secs(2100), |status| {
-        //     !status.is_transitional()
-        // })
-        // .map_err(|err| anyhow::anyhow!("Unexpected Wifi status (Transitional state): {:?}", err))?;
-
-        // let status = self.esp_wifi.status();
-
-        // if let wifi::Status(
-        //     ClientStatus::Started(ClientConnectionStatus::Connected(ClientIpStatus::Done(
-        //         _ip_settings,
-        //     ))),
-        //     _,
-        // ) = status
-        // {
-        //     println!("Wifi connected");
-        // } else {
-        //     bail!(
-        //         "Could not connect to Wifi - Unexpected Wifi status: {:?}",
-        //         status
-        //     );
-        // }
-
         Ok(())
         // Ok(self)
     }
