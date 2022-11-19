@@ -74,21 +74,21 @@ impl<'a> Wifi<'a> {
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
 
-        info!("Searching for Wifi network {}", ssid);
+        println!("Searching for Wifi network {}", ssid);
         let ap_infos = self.esp_wifi.scan()?;
         let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
         let channel = if let Some(ours) = ours {
-            info!(
+            println!(
                 "Found configured access point {} on channel {}",
                 ssid, ours.channel
             );
             Some(ours.channel)
         } else {
-            info!("Configured access point {} not found during scanning, will go with unknown channel",  ssid);
+            println!("Configured access point {} not found during scanning, will go with unknown channel",  ssid);
             None
         };
 
-        info!("setting Wifi configuration");
+        println!("setting Wifi configuration");
 
         let client_config = ClientConfiguration {
             ssid: ssid.into(),
@@ -115,7 +115,7 @@ impl<'a> Wifi<'a> {
         //     _,
         // ) = status
         // {
-        //     info!("Wifi connected");
+        //     println!("Wifi connected");
         // } else {
         //     bail!(
         //         "Could not connect to Wifi - Unexpected Wifi status: {:?}",
@@ -153,7 +153,7 @@ fn check_credentials(ssid: &str, psk: &str, auth_method: &mut AuthMethod) -> any
     }
     if psk.is_empty() {
         *auth_method = AuthMethod::None;
-        info!("Wifi password is empty");
+        println!("Wifi password is empty");
     }
     Ok(())
 }

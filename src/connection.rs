@@ -1,6 +1,10 @@
 use anyhow::bail;
 use core::str;
-use std::borrow::BorrowMut;
+// use std::borrow::BorrowMut;
+use std::sync::mpsc::{channel
+    // , Receiver, Sender
+};
+
 // use std::{thread::sleep, time::Duration};
 
 // use bsc::{temp_sensor::BoardTempSensor, wifi::wifi};
@@ -19,7 +23,7 @@ use log::info;
 use wifi::Wifi;
 
 use esp_idf_svc::http::{
-    client::EspHttpConnection as CEspHttpConnection,
+    // client::EspHttpConnection as CEspHttpConnection,
     server::{Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer},
 };
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -35,6 +39,7 @@ pub struct Config {
 pub struct Connection<'a> {
     wifi: Option<wifi::Wifi<'a>>,
     server: EspHttpServer,
+    // client_credential_channel: (Sender<(String,String)>, Receiver<(String,String)>),
 }
 const BODY_BUFFER_SIZE: u16 = 1024;
 fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<Vec<String>> {
@@ -43,7 +48,7 @@ fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<
     // println!("{:x?}", buf);
     let body_str = match std::str::from_utf8(&buf[0..len]) {
         Ok(s) => {
-            info!("/connect to: {}", s);
+            println!("/connect to: {}", s);
             s
         }
         Err(e) => {
@@ -60,8 +65,9 @@ fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn start_server(&mut self) {
-        self.server.fn_handler("/", Method::Get, |request| {
+    pub(crate) fn start_service(&mut self)-> anyhow::Result<()> {
+        let server = &mut self.server;
+        server.fn_handler("/", Method::Get, |request| {
             let html = Self::index_html();
             println!("someone requested the index page");
             request
@@ -78,19 +84,20 @@ impl<'a> Connection<'a> {
                 .write(html.as_bytes())
                 .unwrap(); //or(anyhow::bail!("Failed to create response"));
             Ok(())
-        });
-        self.server.fn_handler("/status", Method::Get, move |r| {
+        }).unwrap();
+        server.fn_handler("/status", Method::Get, move |r| {
             r.into_ok_response().unwrap();
             Ok(())
-        });
+        }).unwrap();
 
         // let wifi: &'a mut Wifi = &mut self.wifi.as_mut().unwrap();
 
         //FIXME: somehow wrap this in an mpsc so the thread where wifi lives runs this not the thread of the /connect handler
-        let client = |ssid, psk|{
-            self.wifi.unwrap().client(ssid, psk);
-        };
-        self.server.fn_handler("/connect", Method::Post, |mut r| {
+        // let client = |ssid, psk|{
+        //     self.wifi.unwrap().client(ssid, psk);
+        // };
+        let (tx, rx) = channel();
+        server.fn_handler("/connect", Method::Post, move |mut r| {
             let data = match parse_multiline(&mut r) {
                 Ok(d) => d,
                 Err(e) => {
@@ -101,14 +108,23 @@ impl<'a> Connection<'a> {
                     )));
                 }
             };
-            let ssid = &data[0];
-            let psk = &data[1];
-            client(ssid, psk);
+            let ssid = data[0].clone();
+            let psk = data[1].clone();
+            // self.client_credential_channel.0.send((ssid.to_string(), psk.to_string())).unwrap();
+            tx.send((ssid, psk)).unwrap();
+            // client(ssid, psk);
             r.into_ok_response().unwrap();
             Ok(())
-        });
+        }).unwrap();
 
-        println!("server awaiting connection");
+        println!("waiting for wifi credentials");
+        let (ssid, psk) = rx.recv().unwrap();
+        match self.wifi{
+            Some(ref mut w) => w.client(&ssid, &psk),
+            None => bail!("wifi not initialized"),
+        }.unwrap();
+        Ok(())
+
     }
 
     pub(crate) fn new(modem: Modem) -> anyhow::Result<Self> {
@@ -117,11 +133,12 @@ impl<'a> Connection<'a> {
             .expect("Failed to start AP");
 
         let server_config = Configuration::default();
-        let mut server = EspHttpServer::new(&server_config)?;
+        let server = EspHttpServer::new(&server_config)?;
 
         let conn = Connection {
             wifi: Some(wifi),
             server,
+            // client_credential_channel: channel(),
         };
 
         Ok(conn)
