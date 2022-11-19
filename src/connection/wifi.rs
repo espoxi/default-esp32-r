@@ -1,23 +1,25 @@
 // use std::sync::Arc;
-
-use anyhow::{bail, Ok};
-use embedded_svc::wifi::{
-    self,
-    AccessPointConfiguration,
-    AuthMethod,
-    ClientConfiguration,
-    // Configuration,
-    // ClientConfiguration, //ClientConnectionStatus, ClientIpStatus, ClientStatus,
-    // Wifi as _,
+use anyhow::bail;
+use embedded_svc::{
+    storage::{RawStorage, SerDe, StorageBase},
+    wifi::{
+        self,
+        AccessPointConfiguration,
+        AuthMethod,
+        ClientConfiguration,
+        // Wifi as _,
+    },
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     netif::{EspNetif, NetifConfiguration, NetifStack},
-    nvs::EspDefaultNvsPartition,
+    nvs::{EspDefaultNvsPartition, EspNvs, NvsPartitionId},
     wifi::{EspWifi, WifiDriver},
 };
+use std::result::Result::Ok;
 
 use esp_idf_hal::{delay::FreeRtos, modem::Modem};
+// use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 // use log::info;
 
@@ -34,6 +36,85 @@ struct WConfig {
     client: Option<ClientConfiguration>,
     ap: Option<AccessPointConfiguration>,
 }
+
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Creds {
+    pub ssid: String,
+    pub psk: String,
+}
+
+impl Creds {
+    pub fn new(ssid: String, psk: String) -> Self {
+        Self { ssid, psk }
+    }
+
+    pub fn from_str(ssid: &str, psk: &str) -> Self {
+        Self {
+            ssid: ssid.to_string(),
+            psk: psk.to_string(),
+        }
+    }
+
+    pub fn from_storage<T>(storage: &dyn RawStorage<Error = T>) -> anyhow::Result<Self>
+    where
+        T: std::fmt::Debug,
+    {
+        let mut buf = [0u8; 128];
+        let ssid = match storage.get_raw("main_ssid", &mut buf) {
+            Ok(Some(s)) => match String::from_utf8(s.to_vec()) {
+                Ok(s) => s,
+                Err(e) => bail!("Failed to parse ssid; Invalid UTF-8 sequence: {}", e),
+            },
+            Err(_) | Ok(None) => {
+                bail!("Failed to get ssid from storage");
+            }
+        };
+        let psk = match storage.get_raw("main_psk", &mut buf) {
+            Ok(Some(s)) => match String::from_utf8(s.to_vec()) {
+                Ok(s) => s,
+                Err(e) => {
+                    bail!("Failed to parse psk: {}", e);
+                }
+            },
+            Err(_) | Ok(None) => {
+                println!("No psk in storage");
+                "".to_string()
+            }
+        };
+        Ok(Self { ssid, psk })
+    }
+
+    pub fn store_in<T>(&self, storage: &mut dyn RawStorage<Error = T>) -> anyhow::Result<()>
+    where
+        T: std::fmt::Debug,
+    {
+        let ssid = storage.set_raw("main_ssid", self.ssid.as_bytes());
+        let psk = storage.set_raw("main_psk", self.psk.as_bytes());
+        match (ssid, psk) {
+            (Ok(_), Ok(_)) => Ok(()),
+            (Err(e), _) | (_, Err(e)) => bail!("Failed to store creds in storage: {:?}", e),
+        }
+    }
+
+}
+
+// impl SerDe for Creds {
+//     type Error = anyhow::Error;
+
+//     fn serialize<'a, T>(&self, slice: &'a mut [u8], value: &T) -> Result<&'a [u8], Self::Error>
+//     where
+//         T: Serialize,
+//     {
+//         bail!("not implemented");
+//     }
+
+//     fn deserialize<T>(&self, slice: &[u8]) -> Result<T, Self::Error>
+//     where
+//         T: DeserializeOwned,
+//     {
+//         bail!("not implemented");
+//     }
+// }
 
 pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
@@ -63,7 +144,7 @@ impl<'a> Wifi<'a> {
         let esp_wifi = EspWifi::wrap_all(
             WifiDriver::new(
                 modem,
-                EspSystemEventLoop::take().unwrap(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
+                EspSystemEventLoop::take().unwrap(), //XXX: if i need to use the sysloop i need to pass it here
                 EspDefaultNvsPartition::take().ok(),
             )?,
             EspNetif::new_with_conf(&new_c)?,
@@ -85,7 +166,8 @@ impl<'a> Wifi<'a> {
         self.load_cfg()?;
         Ok(())
     }
-    pub fn ap(&mut self, ssid: &str, psk: &str) -> anyhow::Result<()> {
+    pub fn ap(&mut self, creds: Creds) -> anyhow::Result<()> {
+        let (ssid, psk) = (creds.ssid.as_str(), creds.psk.as_str());
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
 
@@ -109,7 +191,8 @@ impl<'a> Wifi<'a> {
         self.load_cfg()?;
         Ok(())
     }
-    pub fn client(&mut self, ssid: &str, psk: &str) -> anyhow::Result<()> {
+    pub fn client(&mut self, creds: Creds) -> anyhow::Result<()> {
+        let (ssid, psk) = (creds.ssid.as_str(), creds.psk.as_str());
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
 
@@ -153,7 +236,7 @@ impl<'a> Wifi<'a> {
             println!("activated client, connecting");
             while !d.is_sta_connected().unwrap_or(false) {
                 match d.connect() {
-                    std::result::Result::Ok(()) => {
+                    Ok(()) => {
                         break;
                     }
                     Err(_e) => {
@@ -185,7 +268,7 @@ impl<'a> Wifi<'a> {
                 client: None,
                 ap: None,
             } => match self.esp_wifi.stop() {
-                std::result::Result::Ok(()) => return Ok(()),
+                Ok(()) => return Ok(()),
                 Err(e) => bail!("Could not stop Wifi: {:?}", e),
             },
             WConfig {

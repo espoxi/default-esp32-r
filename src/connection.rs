@@ -120,7 +120,7 @@ impl<'a> Connection<'a> {
         println!("waiting for wifi credentials");
         let (ssid, psk) = rx.recv().unwrap();
         match self.wifi{
-            Some(ref mut w) => w.client(&ssid, &psk),
+            Some(ref mut w) => w.client(wifi::Creds::new(ssid, psk)),
             None => bail!("wifi not initialized"),
         }.unwrap();
         Ok(())
@@ -129,7 +129,7 @@ impl<'a> Connection<'a> {
 
     pub(crate) fn new(modem: Modem) -> anyhow::Result<Self> {
         let mut wifi = Wifi::new(modem).expect("Failed to create wifi");
-        wifi.ap(CONFIG.wifi_ssid, CONFIG.wifi_psk)
+        wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
             .expect("Failed to start AP");
 
         let server_config = Configuration::default();
