@@ -43,6 +43,11 @@ impl<'a> Wifi<'a> {
             },
         })
     }
+    pub fn disable_ap(&mut self) -> anyhow::Result<()> {
+        self.config.ap = None;
+        self.load_cfg()?;
+        Ok(())
+    }
     pub fn ap(&mut self, ssid: &str, psk: &str) -> anyhow::Result<()> {
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
@@ -57,11 +62,14 @@ impl<'a> Wifi<'a> {
         self.config.ap = Some(ap_config);
 
         self.load_cfg()?;
-        self.esp_wifi.start()?;
         Ok(())
         // Ok(*self)
     }
-
+    pub fn disable_client(&mut self) -> anyhow::Result<()> {
+        self.config.client = None;
+        self.load_cfg()?;
+        Ok(())
+    }
     pub fn client(&mut self, ssid: &str, psk: &str) -> anyhow::Result<()> {
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
@@ -92,7 +100,6 @@ impl<'a> Wifi<'a> {
         self.config.client = Some(client_config);
 
         self.load_cfg()?;
-        self.esp_wifi.start()?;
 
         // self.esp_wifi.wait_status_with_timeout(Duration::from_secs(2100), |status| {
         //     !status.is_transitional()
@@ -122,14 +129,19 @@ impl<'a> Wifi<'a> {
 
     fn load_cfg(&mut self) -> anyhow::Result<()> {
         let config = match self.config.clone() {
-            WConfig{client: None, ap: None} => bail!("No wifi config"),
+            WConfig{client: None, ap: None} => match self.esp_wifi.stop(){
+                std::result::Result::Ok(()) => return Ok(()),
+                Err(e) => bail!("Could not stop Wifi: {:?}", e),
+            },
             WConfig{client: Some(c), ap: None} => wifi::Configuration::Client(c),
             WConfig{client: None, ap: Some(ap)} => wifi::Configuration::AccessPoint(ap),
             WConfig{client: Some(c), ap: Some(ap)} => wifi::Configuration::Mixed(c, ap),
         };
+
         if let Err(e) = self.esp_wifi.set_configuration(&config) {
             bail!("Error setting wifi config: {:?}", e)
         } else {
+            self.esp_wifi.start()?;
             Ok(())
         }
     }
