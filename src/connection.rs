@@ -1,13 +1,17 @@
 use common::events::wifi::Creds;
 use common::events::{ApiEvent, Event};
 use common::store::storeable::SelfStorable;
+use embedded_svc::http::Method;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use anyhow::bail;
 use common::store::DStore;
 
 use esp_idf_hal::modem::Modem;
-use esp_idf_svc::http::server::{Configuration, EspHttpServer};
+use esp_idf_svc::http::{
+    client,
+    server::{Configuration, EspHttpServer},
+};
 use std::str;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -35,8 +39,11 @@ pub struct Connection<'a> {
 impl<'a> Connection<'a> {
     pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<Self> {
         let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
-        wifi.ap(Creds{ssid:CONFIG.wifi_ssid.to_string(), psk:CONFIG.wifi_psk.to_string()})
-            .expect("Failed to start AP");
+        wifi.ap(Creds {
+            ssid: CONFIG.wifi_ssid.to_string(),
+            psk: CONFIG.wifi_psk.to_string(),
+        })
+        .expect("Failed to start AP");
 
         if let Ok(creds) = Creds::from_store(store) {
             //XXX: maybe also send this as an event?
@@ -81,6 +88,14 @@ impl<'a> Connection<'a> {
         //         bail!("wifi not initialized")
         //     }
         // }
+
+        let mut client = client::EspHttpConnection::new(&client::Configuration::default()).unwrap();
+        client.initiate_request(Method::Get, "http://example.com/", &[]).unwrap();
+        println!("{}",client.status());
+        let mut cbuf = [0u8; 1024];
+        client.read(&mut cbuf);
+        println!("{}",str::from_utf8(&cbuf).unwrap());
+
         Ok(())
     }
 }

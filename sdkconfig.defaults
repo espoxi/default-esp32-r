@@ -8,3 +8,6 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 # Workaround for https://github.com/espressif/esp-idf/issues/7631
 #CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
 #CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=n
+
+# bigger app partition as 1MB is not enough for all the features
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
