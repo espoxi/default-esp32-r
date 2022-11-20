@@ -6,6 +6,8 @@ use esp_idf_hal::{peripherals::Peripherals,delay::FreeRtos};
 mod connection;
 use connection::Connection;
 
+mod eventhandler;
+
 use common::store;
 
 fn main() {    
@@ -28,7 +30,6 @@ fn inner_main<'a>(){
             }
         }},
         Err(e) => {println!("Failed to start server: {:?}", e); None},
-        // Ok(_), Err(_) => None,
     };
 
     let mut internal_led = PinDriver::output(peripherals.pins.gpio2).unwrap();
