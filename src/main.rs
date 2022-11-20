@@ -14,7 +14,7 @@ fn main() {
     esp_idf_sys::link_patches();
 
     let peripherals = Peripherals::take().unwrap();
-    let store = store::default();
+    let store = & mut store::default();//TODO: static? es muss mindestens genauso lange leben wie die conn
 
     let _conn : Option<Connection<'static>> = match Connection::new(peripherals.modem, store) {
         Ok(mut c) => {match c.start_service(){

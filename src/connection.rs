@@ -1,5 +1,5 @@
 use anyhow::bail;
-use common::store::{DStore};
+use common::store::DStore;
 use core::str;
 // use std::borrow::BorrowMut;
 use std::sync::mpsc::channel;
@@ -21,8 +21,8 @@ mod wifi;
 // use log::info;
 use wifi::Wifi;
 
-use esp_idf_svc::{
-    http::server::{Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer},
+use esp_idf_svc::http::server::{
+    Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer,
 };
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
@@ -37,6 +37,7 @@ pub struct Config {
 pub struct Connection<'a> {
     wifi: Option<wifi::Wifi<'a>>,
     server: EspHttpServer,
+    store: &'a mut DStore,
     // client_credential_channel: (Sender<(String,String)>, Receiver<(String,String)>),
 }
 const BODY_BUFFER_SIZE: u16 = 1024;
@@ -124,15 +125,17 @@ impl<'a> Connection<'a> {
         println!("waiting for wifi credentials");
         let (ssid, psk) = rx.recv().unwrap();
         match self.wifi {
-            Some(ref mut w) => w.client(wifi::Creds::new(ssid, psk)),
+            Some(ref mut w) => {
+                let creds = wifi::Creds::new(ssid, psk);
+                creds.store_in(self.store);
+                w.client(creds);
+            }
             None => bail!("wifi not initialized"),
         }
-        .unwrap();
         Ok(())
     }
 
-    //TODO: wie soll ich NVS an mehreren Stellen verwenden?
-    pub(crate) fn new(modem: Modem, store: DStore) -> anyhow::Result<Self> {
+    pub(crate) fn new(modem: Modem, store: &'a mut DStore) -> anyhow::Result<Self> {
         let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
         wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
             .expect("Failed to start AP");
@@ -146,9 +149,10 @@ impl<'a> Connection<'a> {
         let server_config = Configuration::default();
         let server = EspHttpServer::new(&server_config)?;
 
-        let conn = Connection {
+        let conn = Self{
             wifi: Some(wifi),
             server,
+            store,
             // client_credential_channel: channel(),
         };
 

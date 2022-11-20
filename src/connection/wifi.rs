@@ -55,7 +55,7 @@ impl Creds {
         }
     }
 
-    pub fn from_store(store: DStore) -> anyhow::Result<Self>
+    pub fn from_store(store: &DStore) -> anyhow::Result<Self>
     {
         match store.get::<Self>("main_creds"){
             Ok(Some(creds)) => Ok(creds),
@@ -64,7 +64,7 @@ impl Creds {
         }
     }
 
-    pub fn store_in(&self, mut store:DStore) -> anyhow::Result<()>
+    pub fn store_in(&self, store:&mut DStore) -> anyhow::Result<()>
     {
         match store.set("main_creds", self){
             Ok(_) => Ok(()),
