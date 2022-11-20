@@ -8,23 +8,27 @@ use connection::Connection;
 
 use common::store;
 
-fn main() {
+fn main() {    
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
+    inner_main()
+}
 
+fn inner_main<'a>(){
     let peripherals = Peripherals::take().unwrap();
-    let store = & mut store::default();//TODO: static? es muss mindestens genauso lange leben wie die conn
+    let mut store = store::default();//TODO: static? es muss mindestens genauso lange leben wie die conn
 
-    let _conn : Option<Connection<'static>> = match Connection::new(peripherals.modem, store) {
-        Ok(mut c) => {match c.start_service(){
+    let _conn : Option<Connection<'a>> = match Connection::new(peripherals.modem, &store) {
+        Ok(mut c) => {match c.start_service(&mut store){
             Ok(_) => Some(c),
             Err(e) => {
                 println!("Error starting service: {}", e);
                 None
             }
         }},
-        Err(e) => {println!("Failed to start server: {:?}", e); None}
+        Err(e) => {println!("Failed to start server: {:?}", e); None},
+        // Ok(_), Err(_) => None,
     };
 
     let mut internal_led = PinDriver::output(peripherals.pins.gpio2).unwrap();

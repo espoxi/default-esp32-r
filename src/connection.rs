@@ -37,7 +37,7 @@ pub struct Config {
 pub struct Connection<'a> {
     wifi: Option<wifi::Wifi<'a>>,
     server: EspHttpServer,
-    store: &'a mut DStore,
+    // store: &'a mut DStore,
     // client_credential_channel: (Sender<(String,String)>, Receiver<(String,String)>),
 }
 const BODY_BUFFER_SIZE: u16 = 1024;
@@ -64,7 +64,7 @@ fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn start_service(&mut self) -> anyhow::Result<()> {
+    pub(crate) fn start_service(&mut self, store: &mut DStore) -> anyhow::Result<()> {
         let server = &mut self.server;
         server
             .fn_handler("/", Method::Get, |request| {
@@ -127,7 +127,7 @@ impl<'a> Connection<'a> {
         match self.wifi {
             Some(ref mut w) => {
                 let creds = wifi::Creds::new(ssid, psk);
-                creds.store_in(self.store);
+                creds.store_in(store);
                 w.client(creds);
             }
             None => bail!("wifi not initialized"),
@@ -135,7 +135,7 @@ impl<'a> Connection<'a> {
         Ok(())
     }
 
-    pub(crate) fn new(modem: Modem, store: &'a mut DStore) -> anyhow::Result<Self> {
+    pub(crate) fn new(modem: Modem, store: &DStore) -> anyhow::Result<Self> {
         let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
         wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
             .expect("Failed to start AP");
@@ -152,7 +152,7 @@ impl<'a> Connection<'a> {
         let conn = Self{
             wifi: Some(wifi),
             server,
-            store,
+            // store,
             // client_credential_channel: channel(),
         };
 
