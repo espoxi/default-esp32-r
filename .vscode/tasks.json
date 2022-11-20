@@ -8,8 +8,6 @@
             "args": [
                 "espflash",
                 "--monitor",
-                // "-s",
-                // "4MB",
                 "/dev/cu.usbserial-0001",
                 // "--release",
                 // "--",
