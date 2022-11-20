@@ -4,6 +4,8 @@ use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition};
 use postcard::{from_bytes, to_stdvec};
 use serde::{de::DeserializeOwned, Serialize};
 
+pub mod storeable;
+
 const STORAGE_RWBUFFER_SIZE: usize = 1024;
 pub type DStore = StorageImpl<STORAGE_RWBUFFER_SIZE, EspDefaultNvs, PostCardSerDe>;
 

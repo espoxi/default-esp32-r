@@ -1,15 +1,15 @@
-use common::events::ApiEvent;
+use common::events::wifi::Creds;
+use common::events::{ApiEvent, Event};
+use common::store::storeable::SelfStorable;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use anyhow::bail;
 use common::store::DStore;
 
 use esp_idf_hal::modem::Modem;
-use esp_idf_svc::http::server::{
-    Configuration, EspHttpServer,
-};
+use esp_idf_svc::http::server::{Configuration, EspHttpServer};
 use std::str;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 mod wifi;
 use wifi::Wifi;
@@ -27,48 +27,18 @@ pub struct Config {
 }
 
 pub struct Connection<'a> {
-    wifi: Option<wifi::Wifi<'a>>,
-    server: EspHttpServer,
+    pub wifi: Option<wifi::Wifi<'a>>,
+    pub server: EspHttpServer,
+    pub tx: Sender<Event>,
 }
 
-
 impl<'a> Connection<'a> {
-    pub(crate) fn start_service(&mut self, store: &mut DStore) -> anyhow::Result<()> {
-        let server = &mut self.server;
-
-        let (tx, rx) = channel::<ApiEvent>();
-
-        api::init(server, tx);
-
-        let (tx2, rx2) = channel();
-
-        println!("waiting for wifi credentials");
-        let (ssid, psk) = rx.recv().unwrap();
-        match self.wifi {
-            Some(ref mut w) => {
-                let creds = wifi::Creds::new(ssid, psk);
-                match creds.store_in(store) {
-                    Ok(_) => println!("stored wifi credentials"),
-                    Err(e) => println!("failed to store wifi credentials: {}", e),
-                };
-                let success = w.client(creds).is_ok();
-                //XXX: send more than just a bool, maybe complete err msg
-                tx2.send(success)?;
-            }
-            None => {
-                tx2.send(false)?;
-                bail!("wifi not initialized")
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn new(modem: Modem, store: &DStore) -> anyhow::Result<Self> {
+    pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<Self> {
         let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
-        wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
+        wifi.ap(Creds{ssid:CONFIG.wifi_ssid.to_string(), psk:CONFIG.wifi_psk.to_string()})
             .expect("Failed to start AP");
 
-        if let Ok(creds) = wifi::Creds::from_store(store) {
+        if let Ok(creds) = Creds::from_store(store) {
             if let Err(e) = wifi.client(creds) {
                 println!("Failed to connect to stored wifi: {}", e);
             };
@@ -80,8 +50,36 @@ impl<'a> Connection<'a> {
         let conn = Self {
             wifi: Some(wifi),
             server,
+            tx,
         };
 
         Ok(conn)
+    }
+
+    pub(crate) fn start_service(&mut self, store: &mut DStore) -> anyhow::Result<()> {
+        let server = &mut self.server;
+
+        api::init(server, self.tx.clone());
+
+        // let (tx2, rx2) = channel();
+        // println!("waiting for wifi credentials");
+        // let (ssid, psk) = rx.recv().unwrap();
+        // match self.wifi {
+        //     Some(ref mut w) => {
+        //         let creds = wifi::Creds::new(ssid, psk);
+        //         match creds.store_in(store) {
+        //             Ok(_) => println!("stored wifi credentials"),
+        //             Err(e) => println!("failed to store wifi credentials: {}", e),
+        //         };
+        //         let success = w.client(creds).is_ok();
+        //         //XXX: send more than just a bool, maybe complete err msg
+        //         tx2.send(success)?;
+        //     }
+        //     None => {
+        //         tx2.send(false)?;
+        //         bail!("wifi not initialized")
+        //     }
+        // }
+        Ok(())
     }
 }

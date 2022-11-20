@@ -1,7 +1,7 @@
 use std::sync::mpsc::Sender;
 
 use anyhow::bail;
-use common::events::ApiEvent;
+use common::{events::{Event,ApiEvent, wifi::Creds}, api_event};
 use embedded_svc::{http::{server::{HandlerError, Request as SRequest}, Method}, io::Read};
 use esp_idf_svc::http::server::{EspHttpConnection as SEspHttpConnection, EspHttpServer};
 
@@ -11,7 +11,7 @@ macro_rules! handler_bail {
     };
 }
 
-pub fn init(server: &mut EspHttpServer, tx: Sender<ApiEvent>) {
+pub fn init(server: &mut EspHttpServer, tx: Sender<Event>) {
     server
         .fn_handler("/", Method::Get, |request| {
             let html = index_html();
@@ -47,7 +47,7 @@ pub fn init(server: &mut EspHttpServer, tx: Sender<ApiEvent>) {
             let ssid = data[0].clone();
             let psk = data[1].clone();
 
-            tx.send(ApiEvent::ConnectToWifi(ssid, psk)).unwrap();
+            tx.send(api_event!(ConnectToWifi(Creds{ssid,psk}))).unwrap();
             // client(ssid, psk);
             // match rx2.recv() {
             //     Ok(true) => r.into_ok_response().unwrap(),

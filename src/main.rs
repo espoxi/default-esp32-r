@@ -1,40 +1,58 @@
-use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
+// use std::thread;
+
 use esp_idf_hal::gpio::*;
+use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 // use esp_idf_hal::gpio::;
-use esp_idf_hal::{peripherals::Peripherals,delay::FreeRtos};
+use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 
 mod connection;
 use connection::Connection;
 
-mod eventhandler;
+mod eventsystem;
+use eventsystem::{api, EventHandler};
 
 use common::store;
 
-fn main() {    
+fn main() {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
     inner_main()
 }
 
-fn inner_main<'a>(){
+fn inner_main<'a>() {
     let peripherals = Peripherals::take().unwrap();
-    let mut store = store::default();//TODO: static? es muss mindestens genauso lange leben wie die conn
+    let mut store = store::default(); //TODO: static? es muss mindestens genauso lange leben wie die conn
 
-    let _conn : Option<Connection<'a>> = match Connection::new(peripherals.modem, &store) {
-        Ok(mut c) => {match c.start_service(&mut store){
+    let (tx, rx) = eventsystem::mk_queue();
+
+    let conn: Connection<'a> = match Connection::new(peripherals.modem, &store, tx.clone()) {
+        Ok(mut c) => match c.start_service(&mut store) {
             Ok(_) => Some(c),
             Err(e) => {
                 println!("Error starting service: {}", e);
                 None
             }
-        }},
-        Err(e) => {println!("Failed to start server: {:?}", e); None},
-    };
+        },
+        Err(e) => {
+            println!("Failed to start server: {:?}", e);
+            None
+        }
+    }
+    .unwrap();
+
+    let api_handler = api::ApiEventHandler::new(conn);
+    let handler = EventHandler::init((tx, rx), api_handler);
+
+    // thread::spawn(|| {
+    //     handler.start_handling();
+    // });
 
     let mut internal_led = PinDriver::output(peripherals.pins.gpio2).unwrap();
 
     loop {
+        let event = handler.channel.1.recv().unwrap();
+        handler.handle(event);
         internal_led.set_high().unwrap();
         // we are sleeping here to make sure the watchdog isn't triggered
         FreeRtos::delay_ms(500);

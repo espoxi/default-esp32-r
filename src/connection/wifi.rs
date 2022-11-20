@@ -1,6 +1,6 @@
 // use std::sync::Arc;
 use anyhow::bail;
-use common::store::DStore;
+use common::{store::DStore, events::wifi::Creds};
 use embedded_svc::{
     wifi::{
         self,
@@ -37,60 +37,7 @@ struct WConfig {
     ap: Option<AccessPointConfiguration>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Creds {
-    pub ssid: String,
-    pub psk: String,
-}
 
-impl Creds {
-    pub fn new(ssid: String, psk: String) -> Self {
-        Self { ssid, psk }
-    }
-
-    pub fn from_str(ssid: &str, psk: &str) -> Self {
-        Self {
-            ssid: ssid.to_string(),
-            psk: psk.to_string(),
-        }
-    }
-
-    pub fn from_store(store: &DStore) -> anyhow::Result<Self>
-    {
-        match store.get::<Self>("main_creds"){
-            Ok(Some(creds)) => Ok(creds),
-            Ok(None) => bail!("No credentials found in store"),
-            Err(e) => bail!("Failed to get credentials from store: {}", e),
-        }
-    }
-
-    pub fn store_in(&self, store:&mut DStore) -> anyhow::Result<()>
-    {
-        match store.set("main_creds", self){
-            Ok(_) => Ok(()),
-            Err(e) => bail!("Failed to store credentials in store: {}", e),
-        }
-    }
-
-}
-
-// impl SerDe for Creds {
-//     type Error = anyhow::Error;
-
-//     fn serialize<'a, T>(&self, slice: &'a mut [u8], value: &T) -> Result<&'a [u8], Self::Error>
-//     where
-//         T: Serialize,
-//     {
-//         bail!("not implemented");
-//     }
-
-//     fn deserialize<T>(&self, slice: &[u8]) -> Result<T, Self::Error>
-//     where
-//         T: DeserializeOwned,
-//     {
-//         bail!("not implemented");
-//     }
-// }
 
 pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
@@ -126,7 +73,6 @@ impl<'a> Wifi<'a> {
             EspNetif::new_with_conf(&new_c)?,
             EspNetif::new(NetifStack::Ap)?,
         )?;
-        // let _ = core::mem::replace(&mut esp_wifi.sta_netif(), &EspNetif::new_with_conf(&new_c)?);
 
         Ok(Self {
             esp_wifi,
