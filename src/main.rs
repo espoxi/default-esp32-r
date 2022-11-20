@@ -1,3 +1,4 @@
+use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_hal::gpio::*;
 // use esp_idf_hal::gpio::;
@@ -12,9 +13,9 @@ fn main() {
     esp_idf_sys::link_patches();
 
     let peripherals = Peripherals::take().unwrap();
+    let nvsp = EspDefaultNvsPartition::take().expect("Failed to take NVS partition");
 
-
-    let _conn : Option<Connection<'static>> = match Connection::new(peripherals.modem) {
+    let _conn : Option<Connection<'static>> = match Connection::new(peripherals.modem, nvsp) {
         Ok(mut c) => {match c.start_service(){
             Ok(_) => Some(c),
             Err(e) => {

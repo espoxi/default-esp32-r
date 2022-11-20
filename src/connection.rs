@@ -1,9 +1,7 @@
 use anyhow::bail;
 use core::str;
 // use std::borrow::BorrowMut;
-use std::sync::mpsc::{channel
-    // , Receiver, Sender
-};
+use std::sync::mpsc::channel;
 
 // use std::{thread::sleep, time::Duration};
 
@@ -22,9 +20,9 @@ mod wifi;
 // use log::info;
 use wifi::Wifi;
 
-use esp_idf_svc::http::{
-    // client::EspHttpConnection as CEspHttpConnection,
-    server::{Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer},
+use esp_idf_svc::{
+    http::server::{Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer},
+    nvs::{EspDefaultNvs, EspDefaultNvsPartition, EspNvsPartition, NvsPartitionId},
 };
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
@@ -65,30 +63,34 @@ fn parse_multiline(r: &mut SRequest<&mut SEspHttpConnection>) -> anyhow::Result<
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn start_service(&mut self)-> anyhow::Result<()> {
+    pub(crate) fn start_service(&mut self) -> anyhow::Result<()> {
         let server = &mut self.server;
-        server.fn_handler("/", Method::Get, |request| {
-            let html = Self::index_html();
-            println!("someone requested the index page");
-            request
-                .into_response(
-                    200,
-                    Some("zueckrali"), //Some(html.as_str()),
-                    &[
+        server
+            .fn_handler("/", Method::Get, |request| {
+                let html = Self::index_html();
+                println!("someone requested the index page");
+                request
+                    .into_response(
+                        200,
+                        Some("zueckrali"), //Some(html.as_str()),
+                        &[
                         // ("content-type", "text/html"),
                         // ("content-length", format!("{}", html.len()).as_str()),
                     ],
-                )
-                .unwrap()
-                .connection()
-                .write(html.as_bytes())
-                .unwrap(); //or(anyhow::bail!("Failed to create response"));
-            Ok(())
-        }).unwrap();
-        server.fn_handler("/status", Method::Get, move |r| {
-            r.into_ok_response().unwrap();
-            Ok(())
-        }).unwrap();
+                    )
+                    .unwrap()
+                    .connection()
+                    .write(html.as_bytes())
+                    .unwrap(); //or(anyhow::bail!("Failed to create response"));
+                Ok(())
+            })
+            .unwrap();
+        server
+            .fn_handler("/status", Method::Get, move |r| {
+                r.into_ok_response().unwrap();
+                Ok(())
+            })
+            .unwrap();
 
         // let wifi: &'a mut Wifi = &mut self.wifi.as_mut().unwrap();
 
@@ -97,40 +99,51 @@ impl<'a> Connection<'a> {
         //     self.wifi.unwrap().client(ssid, psk);
         // };
         let (tx, rx) = channel();
-        server.fn_handler("/connect", Method::Post, move |mut r| {
-            let data = match parse_multiline(&mut r) {
-                Ok(d) => d,
-                Err(e) => {
-                    r.into_status_response(400).unwrap();
-                    return Err(HandlerError::new(&format!(
-                        "Failed to parse body; Invalid UTF-8 sequence: {}",
-                        e
-                    )));
-                }
-            };
-            let ssid = data[0].clone();
-            let psk = data[1].clone();
-            // self.client_credential_channel.0.send((ssid.to_string(), psk.to_string())).unwrap();
-            tx.send((ssid, psk)).unwrap();
-            // client(ssid, psk);
-            r.into_ok_response().unwrap();
-            Ok(())
-        }).unwrap();
+        server
+            .fn_handler("/connect", Method::Post, move |mut r| {
+                let data = match parse_multiline(&mut r) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        r.into_status_response(400).unwrap();
+                        return Err(HandlerError::new(&format!(
+                            "Failed to parse body; Invalid UTF-8 sequence: {}",
+                            e
+                        )));
+                    }
+                };
+                let ssid = data[0].clone();
+                let psk = data[1].clone();
+                // self.client_credential_channel.0.send((ssid.to_string(), psk.to_string())).unwrap();
+                tx.send((ssid, psk)).unwrap();
+                // client(ssid, psk);
+                r.into_ok_response().unwrap();
+                Ok(())
+            })
+            .unwrap();
 
         println!("waiting for wifi credentials");
         let (ssid, psk) = rx.recv().unwrap();
-        match self.wifi{
+        match self.wifi {
             Some(ref mut w) => w.client(wifi::Creds::new(ssid, psk)),
             None => bail!("wifi not initialized"),
-        }.unwrap();
+        }
+        .unwrap();
         Ok(())
-
     }
 
-    pub(crate) fn new(modem: Modem) -> anyhow::Result<Self> {
-        let mut wifi = Wifi::new(modem).expect("Failed to create wifi");
+    //TODO: wie soll ich NVS an mehreren Stellen verwenden?
+    pub(crate) fn new(modem: Modem, nvsp: EspDefaultNvsPartition) -> anyhow::Result<Self> {
+        let mut wifi = Wifi::new(modem, Some(nvsp)).expect("Failed to create wifi");
         wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
             .expect("Failed to start AP");
+
+        if let Ok(creds) = wifi::Creds::from_storage(
+            &EspDefaultNvs::new(nvsp, "breb", true).expect("Failed to create nvs"),
+        ) {
+            if let Err(e) = wifi.client(creds) {
+                println!("Failed to connect to stored wifi: {}", e);
+            };
+        }
 
         let server_config = Configuration::default();
         let server = EspHttpServer::new(&server_config)?;

@@ -122,7 +122,7 @@ pub struct Wifi<'a> {
 }
 
 impl<'a> Wifi<'a> {
-    pub fn new(modem: Modem) -> anyhow::Result<Self> {
+    pub fn new(modem: Modem, nvsp: Option<EspDefaultNvsPartition>) -> anyhow::Result<Self> {
         //let mut
         // let esp_wifi = EspWifi::new(
         //     modem,
@@ -145,7 +145,7 @@ impl<'a> Wifi<'a> {
             WifiDriver::new(
                 modem,
                 EspSystemEventLoop::take().unwrap(), //XXX: if i need to use the sysloop i need to pass it here
-                EspDefaultNvsPartition::take().ok(),
+                nvsp,
             )?,
             EspNetif::new_with_conf(&new_c)?,
             EspNetif::new(NetifStack::Ap)?,
