@@ -9,7 +9,7 @@ mod connection;
 use connection::Connection;
 
 mod eventsystem;
-use eventsystem::{api, EventHandler};
+use eventsystem::{api, EventHandler, SubHandlers};
 
 use common::store;
 
@@ -20,13 +20,13 @@ fn main() {
     inner_main()
 }
 
-fn inner_main<'a>() {
+fn inner_main<'b>() {
     let peripherals = Peripherals::take().unwrap();
     let mut store = store::default(); //TODO: static? es muss mindestens genauso lange leben wie die conn
 
     let (tx, rx) = eventsystem::mk_queue();
 
-    let conn: Connection<'a> = match Connection::new(peripherals.modem, &store, tx.clone()) {
+    let mut conn: Connection<'b> = match Connection::new(peripherals.modem, &store, tx.clone()) {
         Ok(mut c) => match c.start_service(&mut store) {
             Ok(_) => Some(c),
             Err(e) => {
@@ -41,8 +41,7 @@ fn inner_main<'a>() {
     }
     .unwrap();
 
-    let api_handler = api::ApiEventHandler::new(conn);
-    let handler = EventHandler::init((tx, rx), api_handler);
+    let mut handler = EventHandler::init((tx, rx));
 
     // thread::spawn(|| {
     //     handler.start_handling();
@@ -52,7 +51,10 @@ fn inner_main<'a>() {
 
     loop {
         let event = handler.channel.1.recv().unwrap();
-        handler.handle(event);
+        let mut api_handler = api::ApiEventHandler::new(&mut conn, &mut store);
+        handler.handle(event, SubHandlers{
+            api_handler: &mut api_handler,
+        });
         internal_led.set_high().unwrap();
         // we are sleeping here to make sure the watchdog isn't triggered
         FreeRtos::delay_ms(500);

@@ -5,24 +5,28 @@ use std::{sync::mpsc::{channel, Receiver, Sender}
 };
 pub mod api;
 
-pub struct EventHandler<'a> {
+pub struct SubHandlers<'a,'b> {
+    pub api_handler: &'a mut api::ApiEventHandler<'a,'b>,
+}
+
+pub struct EventHandler {
     pub channel: (Sender<Event>, Receiver<Event>),
-    api_handler: api::ApiEventHandler<'a>,
+    // 
 }
 
 pub fn mk_queue() -> (Sender<Event>, Receiver<Event>) {
     channel()
 }
 
-impl<'a> EventHandler<'a> {
+impl EventHandler {
     pub fn init(
         channel: (Sender<Event>, Receiver<Event>),
-        api_handler: api::ApiEventHandler<'a>,
+        // api_handler: api::ApiEventHandler<'a>,
     ) -> Self {
         // let channel = channel();
         Self {
             channel,
-            api_handler,
+            // api_handler,
         }
     }
 
@@ -37,9 +41,9 @@ impl<'a> EventHandler<'a> {
     //         }
     // }
 
-    pub fn handle(&self, e: Event)->anyhow::Result<()> {
+    pub fn handle(&mut self, e: Event, mut shs: SubHandlers)->anyhow::Result<()> {
         match e {
-            Event::Api(ae) => self.api_handler.handle(ae),
+            Event::Api(ae) => shs.api_handler.handle(ae),
         }
     }
 }

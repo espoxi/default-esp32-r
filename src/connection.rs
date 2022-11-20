@@ -39,6 +39,7 @@ impl<'a> Connection<'a> {
             .expect("Failed to start AP");
 
         if let Ok(creds) = Creds::from_store(store) {
+            //XXX: maybe also send this as an event?
             if let Err(e) = wifi.client(creds) {
                 println!("Failed to connect to stored wifi: {}", e);
             };
