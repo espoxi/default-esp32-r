@@ -100,6 +100,7 @@ impl<'a> Connection<'a> {
         //     self.wifi.unwrap().client(ssid, psk);
         // };
         let (tx, rx) = channel();
+        let (tx2, rx2) = channel();
         server
             .fn_handler("/connect", Method::Post, move |mut r| {
                 let data = match parse_multiline(&mut r) {
@@ -117,7 +118,10 @@ impl<'a> Connection<'a> {
                 // self.client_credential_channel.0.send((ssid.to_string(), psk.to_string())).unwrap();
                 tx.send((ssid, psk)).unwrap();
                 // client(ssid, psk);
-                r.into_ok_response().unwrap();
+                match rx2.recv() {
+                    Ok(true) => r.into_ok_response().unwrap(),
+                    Err(_) | Ok(false) => r.into_status_response(500).unwrap(),
+                };
                 Ok(())
             })
             .unwrap();
@@ -127,10 +131,18 @@ impl<'a> Connection<'a> {
         match self.wifi {
             Some(ref mut w) => {
                 let creds = wifi::Creds::new(ssid, psk);
-                creds.store_in(store);
-                w.client(creds);
+                match creds.store_in(store) {
+                    Ok(_) => println!("stored wifi credentials"),
+                    Err(e) => println!("failed to store wifi credentials: {}", e),
+                };
+                let success = w.client(creds).is_ok();
+                //XXX: send more than just a bool, maybe complete err msg
+                tx2.send(success)?;
             }
-            None => bail!("wifi not initialized"),
+            None => {
+                tx2.send(false)?;
+                bail!("wifi not initialized")
+            }
         }
         Ok(())
     }
@@ -149,7 +161,7 @@ impl<'a> Connection<'a> {
         let server_config = Configuration::default();
         let server = EspHttpServer::new(&server_config)?;
 
-        let conn = Self{
+        let conn = Self {
             wifi: Some(wifi),
             server,
             // store,
