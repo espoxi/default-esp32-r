@@ -1,0 +1,13 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-svc = { version = "0.23", git = "https://github.com/esp-rs/embedded-svc", features = ["experimental"] }
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc", version = "0.43.0", features = ["experimental"]}
+serde = { version = "1.0.147", features = ["derive"] }
+postcard = { version = "1.0.2", features = ["use-std"] }
+anyhow = "1.0.66"

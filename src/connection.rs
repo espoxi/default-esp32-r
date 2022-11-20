@@ -1,4 +1,5 @@
 use anyhow::bail;
+use common::store::{DStore};
 use core::str;
 // use std::borrow::BorrowMut;
 use std::sync::mpsc::channel;
@@ -22,7 +23,6 @@ use wifi::Wifi;
 
 use esp_idf_svc::{
     http::server::{Configuration, EspHttpConnection as SEspHttpConnection, EspHttpServer},
-    nvs::{EspDefaultNvs, EspDefaultNvsPartition, EspNvsPartition, NvsPartitionId},
 };
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
@@ -132,14 +132,12 @@ impl<'a> Connection<'a> {
     }
 
     //TODO: wie soll ich NVS an mehreren Stellen verwenden?
-    pub(crate) fn new(modem: Modem, nvsp: EspDefaultNvsPartition) -> anyhow::Result<Self> {
-        let mut wifi = Wifi::new(modem, Some(nvsp)).expect("Failed to create wifi");
+    pub(crate) fn new(modem: Modem, store: DStore) -> anyhow::Result<Self> {
+        let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
         wifi.ap(wifi::Creds::from_str(CONFIG.wifi_ssid, CONFIG.wifi_psk))
             .expect("Failed to start AP");
 
-        if let Ok(creds) = wifi::Creds::from_storage(
-            &EspDefaultNvs::new(nvsp, "breb", true).expect("Failed to create nvs"),
-        ) {
+        if let Ok(creds) = wifi::Creds::from_store(store) {
             if let Err(e) = wifi.client(creds) {
                 println!("Failed to connect to stored wifi: {}", e);
             };

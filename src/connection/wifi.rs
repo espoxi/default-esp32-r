@@ -1,7 +1,7 @@
 // use std::sync::Arc;
 use anyhow::bail;
+use common::store::DStore;
 use embedded_svc::{
-    storage::{RawStorage, SerDe, StorageBase},
     wifi::{
         self,
         AccessPointConfiguration,
@@ -13,13 +13,13 @@ use embedded_svc::{
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     netif::{EspNetif, NetifConfiguration, NetifStack},
-    nvs::{EspDefaultNvsPartition, EspNvs, NvsPartitionId},
+    nvs::{EspDefaultNvsPartition},
     wifi::{EspWifi, WifiDriver},
 };
 use std::result::Result::Ok;
 
 use esp_idf_hal::{delay::FreeRtos, modem::Modem};
-// use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 // use log::info;
 
@@ -37,7 +37,7 @@ struct WConfig {
     ap: Option<AccessPointConfiguration>,
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Creds {
     pub ssid: String,
     pub psk: String,
@@ -55,44 +55,20 @@ impl Creds {
         }
     }
 
-    pub fn from_storage<T>(storage: &dyn RawStorage<Error = T>) -> anyhow::Result<Self>
-    where
-        T: std::fmt::Debug,
+    pub fn from_store(store: DStore) -> anyhow::Result<Self>
     {
-        let mut buf = [0u8; 128];
-        let ssid = match storage.get_raw("main_ssid", &mut buf) {
-            Ok(Some(s)) => match String::from_utf8(s.to_vec()) {
-                Ok(s) => s,
-                Err(e) => bail!("Failed to parse ssid; Invalid UTF-8 sequence: {}", e),
-            },
-            Err(_) | Ok(None) => {
-                bail!("Failed to get ssid from storage");
-            }
-        };
-        let psk = match storage.get_raw("main_psk", &mut buf) {
-            Ok(Some(s)) => match String::from_utf8(s.to_vec()) {
-                Ok(s) => s,
-                Err(e) => {
-                    bail!("Failed to parse psk: {}", e);
-                }
-            },
-            Err(_) | Ok(None) => {
-                println!("No psk in storage");
-                "".to_string()
-            }
-        };
-        Ok(Self { ssid, psk })
+        match store.get::<Self>("main_creds"){
+            Ok(Some(creds)) => Ok(creds),
+            Ok(None) => bail!("No credentials found in store"),
+            Err(e) => bail!("Failed to get credentials from store: {}", e),
+        }
     }
 
-    pub fn store_in<T>(&self, storage: &mut dyn RawStorage<Error = T>) -> anyhow::Result<()>
-    where
-        T: std::fmt::Debug,
+    pub fn store_in(&self, mut store:DStore) -> anyhow::Result<()>
     {
-        let ssid = storage.set_raw("main_ssid", self.ssid.as_bytes());
-        let psk = storage.set_raw("main_psk", self.psk.as_bytes());
-        match (ssid, psk) {
-            (Ok(_), Ok(_)) => Ok(()),
-            (Err(e), _) | (_, Err(e)) => bail!("Failed to store creds in storage: {:?}", e),
+        match store.set("main_creds", self){
+            Ok(_) => Ok(()),
+            Err(e) => bail!("Failed to store credentials in store: {}", e),
         }
     }
 
