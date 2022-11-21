@@ -2,6 +2,9 @@ use common::events::wifi::Creds;
 use common::events::{ApiEvent, Event};
 use common::store::storeable::SelfStorable;
 use embedded_svc::http::Method;
+use embedded_svc::ipv4;
+use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::ping;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use anyhow::bail;
@@ -38,7 +41,8 @@ pub struct Connection<'a> {
 
 impl<'a> Connection<'a> {
     pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<Self> {
-        let mut wifi = Wifi::new(modem, None).expect("Failed to create wifi");
+        let sysloop = EspSystemEventLoop::take().unwrap();//TODO: this should be passed from main
+        let mut wifi = Wifi::new(modem, None, sysloop).expect("Failed to create wifi");
         wifi.ap(Creds {
             ssid: CONFIG.wifi_ssid.to_string(),
             psk: CONFIG.wifi_psk.to_string(),
@@ -89,13 +93,27 @@ impl<'a> Connection<'a> {
         //     }
         // }
 
-        let mut client = client::EspHttpConnection::new(&client::Configuration::default()).unwrap();
-        client.initiate_request(Method::Get, "http://example.com/", &[]).unwrap();
-        println!("{}",client.status());
-        let mut cbuf = [0u8; 1024];
-        client.read(&mut cbuf);
-        println!("{}",str::from_utf8(&cbuf).unwrap());
+        // let mut client = client::EspHttpConnection::new(&client::Configuration::default()).unwrap();
+        // client.initiate_request(Method::Get, "http://example.com/", &[]).unwrap();
+        // println!("{}",client.status());
+        // let mut cbuf = [0u8; 1024];
+        // client.read(&mut cbuf);
+        // println!("{}",str::from_utf8(&cbuf).unwrap());
 
         Ok(())
     }
+}
+
+
+pub fn ping(ip: ipv4::Ipv4Addr) -> anyhow::Result<()> {
+    println!("About to do some pings for {:?}", ip);
+
+    let ping_summary = ping::EspPing::default().ping(ip, &Default::default())?;
+    if ping_summary.transmitted != ping_summary.received {
+        bail!("Pinging IP {} resulted in timeouts", ip);
+    }
+
+    println!("Pinging done");
+
+    Ok(())
 }

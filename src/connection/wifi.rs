@@ -12,14 +12,16 @@ use embedded_svc::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    netif::{EspNetif, NetifConfiguration, NetifStack},
+    netif::{EspNetif, NetifConfiguration, NetifStack, EspNetifWait},
     nvs::{EspDefaultNvsPartition},
     wifi::{EspWifi, WifiDriver},
 };
-use std::result::Result::Ok;
+use std::{result::Result::Ok, net::Ipv4Addr, time::Duration};
 
 use esp_idf_hal::{delay::FreeRtos, modem::Modem};
 use serde::{Deserialize, Serialize};
+
+use crate::connection::ping;
 
 // use log::info;
 
@@ -42,14 +44,15 @@ struct WConfig {
 pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
     config: WConfig,
+    sysloop: EspSystemEventLoop,
 }
 
 impl<'a> Wifi<'a> {
-    pub fn new(modem: Modem, nvsp: Option<EspDefaultNvsPartition>) -> anyhow::Result<Self> {
+    pub fn new(modem: Modem, nvsp: Option<EspDefaultNvsPartition>,sysloop: EspSystemEventLoop) -> anyhow::Result<Self> {
         
         let esp_wifi = EspWifi::new(
             modem,
-            EspSystemEventLoop::take().unwrap(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
+            sysloop.clone(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
             EspDefaultNvsPartition::take().ok(),
         )?;
 
@@ -80,6 +83,7 @@ impl<'a> Wifi<'a> {
                 client: None,
                 ap: None,
             },
+            sysloop: sysloop.clone(),
         })
     }
     #[allow(dead_code)]
@@ -148,10 +152,21 @@ impl<'a> Wifi<'a> {
 
         self.load_cfg()?;
 
-        self.esp_wifi.connect()?;
         self.esp_wifi
             .sta_netif_mut()
             .set_mac(&[0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC])?;
+
+        self.esp_wifi.connect()?;
+
+        if !EspNetifWait::new::<EspNetif>(self.esp_wifi.sta_netif(), &self.sysloop)?.wait_with_timeout(
+            Duration::from_secs(20),
+            || {
+                self.esp_wifi.driver().is_connected().unwrap()
+                    && self.esp_wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
+            },
+        ) {
+            bail!("Wifi did not connect or did not receive a DHCP lease");
+        }
 
         let d = self.esp_wifi.driver_mut();
         if d.is_sta_enabled().unwrap() {
@@ -180,6 +195,12 @@ impl<'a> Wifi<'a> {
                 self.esp_wifi.sta_netif_mut().get_ip_info().unwrap().ip,
             );
         }
+
+        let ip_info = self.esp_wifi.sta_netif().get_ip_info()?;
+
+        println!("Wifi DHCP info: {:?}", ip_info);
+    
+        ping(ip_info.subnet.gateway)?;
 
         Ok(())
         // Ok(self)
