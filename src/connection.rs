@@ -19,7 +19,7 @@ use std::str;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 mod wifi;
-use wifi::Wifi;
+// use wifi::Wifi;
 
 use self::wifi::testwifi;
 
@@ -42,8 +42,7 @@ pub struct Connection<'a> {
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<()> {
-        let sysloop = EspSystemEventLoop::take().unwrap();//TODO: this should be passed from main
+    pub(crate) fn new(modem: Modem, sysloop: EspSystemEventLoop, store: &DStore, tx: Sender<Event>) -> anyhow::Result<()> {
 
         testwifi(modem, sysloop.clone(), "routerli", "--redacted--")?;//TODO: put the actual creds
         // let mut wifi = Wifi::new(modem, None, sysloop.clone()).expect("Failed to create wifi");
