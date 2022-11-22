@@ -3,14 +3,7 @@
 //#![feature(backtrace)]
 
 mod connection;
-
-#[toml_cfg::toml_config]
-pub struct Config {
-    #[default("")]
-    wifi_ssid: &'static str,
-    #[default("")]
-    wifi_psk: &'static str,
-}
+mod store;
 
 #[cfg(all(feature = "qemu", not(esp32)))]
 compile_error!("The `qemu` feature can only be built for the `xtensa-esp32-espidf` target.");
@@ -82,7 +75,7 @@ fn main() -> Result<()> {
     #[allow(clippy::redundant_clone)]
     #[cfg(not(feature = "qemu"))]
     #[allow(unused_mut)]
-    let mut wifi = connection::wifi::test_wifi(peripherals.modem, sysloop.clone())?;
+    let mut wifi = connection::wifi::Wlan::start(peripherals.modem, sysloop.clone())?;
 
     test_tcp()?;
 
