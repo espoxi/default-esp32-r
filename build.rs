@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-
 use embuild::{
-    self, bingen,
+    self,
     build::{CfgArgs, LinkArgs},
-    cargo, symgen,
 };
 
 fn main() -> anyhow::Result<()> {
