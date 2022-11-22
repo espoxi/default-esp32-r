@@ -2,7 +2,7 @@
 
 A demo STD binary crate for the ESP32[XX] and ESP-IDF, which connects to WiFi, Ethernet, drives a small HTTP server and draws on a LED screen.
 
-![CI](https://github.com/ivmarkov/rust-esp32-std-demo/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/ivmarkov/espoxi3/actions/workflows/ci.yml/badge.svg)
 
 [Join in](https://matrix.to/#/#esp-rs:matrix.org) on the discussion!
 
@@ -26,18 +26,18 @@ Highlights:
 - Install the [Rust Espressif compiler toolchain and the Espressif LLVM Clang toolchain](https://github.com/esp-rs/rust-build)
   - This is necessary, because support for the Xtensa architecture (ESP32 / ESP32-S2 / ESP32-S3) is not upstreamed in LLVM yet
 - Switch to the `esp` toolchain from the pre-built binaries: `rustup default esp`
-  - (You can also skip this step and switch to the `esp` toolchain *for the demo crate only* by executing `rustup override set esp` inside the `rust-esp32-std-demo` directory once you have cloned the demo as per below)
+  - (You can also skip this step and switch to the `esp` toolchain *for the demo crate only* by executing `rustup override set esp` inside the `espoxi3` directory once you have cloned the demo as per below)
   - **NOTE** For ESP32-C3 - which runs a RiscV32 chip - you can just use the stock nightly Rust compiler, and a recent, stock Clang (as in Clang 11+)
   - (You can do this by issuing `rustup install nightly` and then `rustup default nightly` instead of installing/building the Rust & Clang ESP forks and switching to their `esp` toolchain as advised above)
 - If using the custom Espressif Clang, make sure that you DON'T have a system Clang installed as well, because even if you have the Espressif one first on your `$PATH`, Bindgen will still pick the system one
   - A workaround that does not require uninstalling the system Clang is to do `export LIBCLANG_PATH=<path to the Espressif Clang lib directory>` prior to continuing the build process
 - `cargo install ldproxy`
-- Clone this repo: `git clone https://github.com/ivmarkov/rust-esp32-std-demo`
-- Enter it: `cd rust-esp32-std-demo`
+- Clone this repo: `git clone https://github.com/ivmarkov/espoxi3`
+- Enter it: `cd espoxi3`
 - Export two environment variables that would contain the SSID & password of your wireless network:
   - `export RUST_ESP32_STD_DEMO_WIFI_SSID=<ssid>`
   - `export RUST_ESP32_STD_DEMO_WIFI_PASS=<ssid>`
-- To configure the demo for your particular board, please uncomment the relevant [Rust target for your board](https://github.com/ivmarkov/rust-esp32-std-demo/blob/main/.cargo/config.toml#L2) and comment the others. Alternatively, just append the `--target <target>` flag to all `cargo build` lines below.
+- To configure the demo for your particular board, please uncomment the relevant [Rust target for your board](https://github.com/ivmarkov/espoxi3/blob/main/.cargo/config.toml#L2) and comment the others. Alternatively, just append the `--target <target>` flag to all `cargo build` lines below.
 - Build: `cargo build` or `cargo build --release`
   - (Only if you happen to have a [TTGO T-Display board](http://www.lilygo.cn/prod_view.aspx?TypeId=50033&Id=1126&FId=t3:50033:3)): Add `ttgo` to the `--features` build flags above (as in `cargo build --features ttgo`) to be greeted with a `Hello Rust!` message on the board's LED screen
   - (Only if you happen to have a [Waveshare board](https://www.waveshare.com/wiki/E-Paper_ESP32_Driver_Board) and a [waveshare 4.2" e-paper screen](https://www.waveshare.com/wiki/4.2inch_e-Paper_Module)): Add `waveshare_epd` to the `--features` build flags above (as in `cargo build --features waveshare_epd`) to be greeted with a `Hello Rust!` message on the e-paper screen
@@ -62,7 +62,7 @@ Highlights:
 ## Flash
 
 - `cargo install espflash`
-- `espflash /dev/ttyUSB0 target/[xtensa-esp32-espidf|xtensa-esp32s2-espidf|riscv32imc-esp-espidf]/debug/rust-esp32-std-demo`
+- `espflash /dev/ttyUSB0 target/[xtensa-esp32-espidf|xtensa-esp32s2-espidf|riscv32imc-esp-espidf]/debug/espoxi3`
 - Replace `dev/ttyUSB0` above with the USB port where you've connected the board
 
 **NOTE**: The above commands do use [`espflash`](https://crates.io/crates/espflash) and NOT [`cargo espflash`](https://crates.io/crates/cargo-espflash), even though both can be installed via Cargo. `cargo espflash` is essentially `espflash` but it has some extra superpowers, like the capability to build the project before flashing, or to generate an ESP32 .BIN file from the built .ELF image.
@@ -73,8 +73,8 @@ Highlights:
 - Use the instructions below **only** if you have flashed successfully with `espflash` at least once, or else you might not have a valid bootloader and partition table!
 - The instructions below only (re)flash the application image, as the (one and only) factory image starting from 0x10000 in the partition table!
 - Install esptool using Python: `pip install esptool`
-- (After each cargo build) Convert the elf image to binary: `esptool.py --chip [esp32|esp32s2|esp32c3] elf2image target/xtensa-esp32-espidf/debug/rust-esp32-std-demo`
-- (After each cargo build) Flash the resulting binary: `esptool.py --chip [esp32|esp32s2|esp32c3] -p /dev/ttyUSB0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB 0x10000 target/xtensa-esp32-espidf/debug/rust-esp32-std-demo.bin`
+- (After each cargo build) Convert the elf image to binary: `esptool.py --chip [esp32|esp32s2|esp32c3] elf2image target/xtensa-esp32-espidf/debug/espoxi3`
+- (After each cargo build) Flash the resulting binary: `esptool.py --chip [esp32|esp32s2|esp32c3] -p /dev/ttyUSB0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB 0x10000 target/xtensa-esp32-espidf/debug/espoxi3.bin`
 
 ## Monitor
 

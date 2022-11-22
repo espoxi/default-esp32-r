@@ -1,4 +1,4 @@
 
-[rust-esp32-std-demo]
+[espoxi3]
 wifi_ssid = "FBI Surveillance Van"
 wifi_psk = "hunter22"

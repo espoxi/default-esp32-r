@@ -110,9 +110,6 @@ const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 #[cfg(esp32s2)]
 include!(env!("EMBUILD_GENERATED_SYMBOLS_FILE"));
 
-#[cfg(esp32s2)]
-const ULP: &[u8] = include_bytes!(env!("EMBUILD_GENERATED_BIN_FILE"));
-
 thread_local! {
     static TLS: RefCell<u32> = RefCell::new(13);
 }
@@ -360,9 +357,6 @@ fn main() -> Result<()> {
         info!("Eth stopped");
     }
 
-    #[cfg(esp32s2)]
-    start_ulp(peripherals.ulp, cycles)?;
-
     Ok(())
 }
 
@@ -560,7 +554,7 @@ fn test_timer(
 
         client
             .publish(
-                "rust-esp32-std-demo",
+                "espoxi3",
                 QoS::AtMostOnce,
                 false,
                 format!("Now is {:?}", now).as_bytes(),
@@ -624,7 +618,7 @@ fn test_mqtt_client() -> Result<EspMqttClient<ConnState<MessageImpl, EspError>>>
     info!("About to start MQTT client");
 
     let conf = MqttClientConfiguration {
-        client_id: Some("rust-esp32-std-demo"),
+        client_id: Some("espoxi3"),
         crt_bundle_attach: Some(esp_idf_sys::esp_crt_bundle_attach),
 
         ..Default::default()
@@ -641,7 +635,7 @@ fn test_mqtt_client() -> Result<EspMqttClient<ConnState<MessageImpl, EspError>>>
     // Yet, you still need to efficiently process each message in the callback without blocking for too long.
     //
     // Note also that if you go to http://tools.emqx.io/ and then connect and send a message to topic
-    // "rust-esp32-std-demo", the client configured here should receive it.
+    // "espoxi3", the client configured here should receive it.
     thread::spawn(move || {
         info!("MQTT Listening for messages");
 
@@ -655,18 +649,18 @@ fn test_mqtt_client() -> Result<EspMqttClient<ConnState<MessageImpl, EspError>>>
         info!("MQTT connection loop exit");
     });
 
-    client.subscribe("rust-esp32-std-demo", QoS::AtMostOnce)?;
+    client.subscribe("espoxi3", QoS::AtMostOnce)?;
 
-    info!("Subscribed to all topics (rust-esp32-std-demo)");
+    info!("Subscribed to all topics (espoxi3)");
 
     client.publish(
-        "rust-esp32-std-demo",
+        "espoxi3",
         QoS::AtMostOnce,
         false,
-        "Hello from rust-esp32-std-demo!".as_bytes(),
+        "Hello from espoxi3!".as_bytes(),
     )?;
 
-    info!("Published a hello message to topic \"rust-esp32-std-demo\"");
+    info!("Published a hello message to topic \"espoxi3\"");
 
     Ok(client)
 }
@@ -1083,60 +1077,9 @@ fn httpd(mutex: Arc<(Mutex<Option<u32>>, Condvar)>) -> Result<idf::Server> {
         .at("/panic")
         .get(|_| panic!("User requested a panic!"))?;
 
-    #[cfg(esp32s2)]
-    let server = httpd_ulp_endpoints(server, mutex)?;
-
     server.start(&Default::default())
 }
 
-#[cfg(all(esp32s2, not(feature = "experimental")))]
-fn httpd_ulp_endpoints(
-    server: ServerRegistry,
-    mutex: Arc<(Mutex<Option<u32>>, Condvar)>,
-) -> Result<ServerRegistry> {
-    server
-        .at("/ulp")
-        .get(|_| {
-            Ok(r#"
-            <doctype html5>
-            <html>
-                <body>
-                    <form method = "post" action = "/ulp_start" enctype="application/x-www-form-urlencoded">
-                        Connect a LED to ESP32-S2 GPIO <b>Pin 04</b> and GND.<br>
-                        Blink it with ULP <input name = "cycles" type = "text" value = "10"> times
-                        <input type = "submit" value = "Go!">
-                    </form>
-                </body>
-            </html>
-            "#.into())
-        })?
-        .at("/ulp_start")
-        .post(move |mut request| {
-            let body = request.as_bytes()?;
-
-            let cycles = url::form_urlencoded::parse(&body)
-                .filter(|p| p.0 == "cycles")
-                .map(|p| str::parse::<u32>(&p.1).map_err(Error::msg))
-                .next()
-                .ok_or(anyhow::anyhow!("No parameter cycles"))??;
-
-            let mut wait = mutex.0.lock().unwrap();
-
-            *wait = Some(cycles);
-            mutex.1.notify_one();
-
-            Ok(format!(
-                r#"
-                <doctype html5>
-                <html>
-                    <body>
-                        About to sleep now. The ULP chip should blink the LED {} times and then wake me up. Bye!
-                    </body>
-                </html>
-                "#,
-                cycles).to_owned().into())
-        })
-}
 
 #[allow(unused_variables)]
 #[cfg(feature = "experimental")]
@@ -1168,104 +1111,7 @@ fn httpd(
             panic!("User requested a panic!")
         })?;
 
-    #[cfg(esp32s2)]
-    httpd_ulp_endpoints(&mut server, mutex)?;
-
     Ok(server)
-}
-
-#[cfg(all(esp32s2, feature = "experimental"))]
-fn httpd_ulp_endpoints(
-    server: &mut esp_idf_svc::http::server::EspHttpServer,
-    mutex: Arc<(Mutex<Option<u32>>, Condvar)>,
-) -> Result<()> {
-    use embedded_svc::http::server::registry::Registry;
-    use embedded_svc::http::server::{Request, Response};
-    use embedded_svc::io::adapters::ToStd;
-
-    server
-        .handle_get("/ulp", |_req, resp| {
-            resp.send_str(
-            r#"
-            <doctype html5>
-            <html>
-                <body>
-                    <form method = "post" action = "/ulp_start" enctype="application/x-www-form-urlencoded">
-                        Connect a LED to ESP32-S2 GPIO <b>Pin 04</b> and GND.<br>
-                        Blink it with ULP <input name = "cycles" type = "text" value = "10"> times
-                        <input type = "submit" value = "Go!">
-                    </form>
-                </body>
-            </html>
-            "#)?;
-
-            Ok(())
-        })?
-        .handle_post("/ulp_start", move |mut req, resp| {
-            let mut body = Vec::new();
-
-            ToStd::new(req.reader()).read_to_end(&mut body)?;
-
-            let cycles = url::form_urlencoded::parse(&body)
-                .filter(|p| p.0 == "cycles")
-                .map(|p| str::parse::<u32>(&p.1).map_err(Error::msg))
-                .next()
-                .ok_or(anyhow::anyhow!("No parameter cycles"))??;
-
-            let mut wait = mutex.0.lock().unwrap();
-
-            *wait = Some(cycles);
-            mutex.1.notify_one();
-
-            resp.send_str(
-                &format!(
-                r#"
-                <doctype html5>
-                <html>
-                    <body>
-                        About to sleep now. The ULP chip should blink the LED {} times and then wake me up. Bye!
-                    </body>
-                </html>
-                "#,
-                cycles))?;
-
-            Ok(())
-        })?;
-
-    Ok(())
-}
-
-#[cfg(esp32s2)]
-fn start_ulp(mut ulp: esp_idf_hal::ulp::ULP, cycles: u32) -> Result<()> {
-    let cycles_var = CYCLES as *mut u32;
-
-    unsafe {
-        ulp.load(ULP)?;
-        info!("RiscV ULP binary loaded successfully");
-
-        info!(
-            "Default ULP LED blink cycles: {}",
-            ulp.read_var(cycles_var)?
-        );
-
-        ulp.write_var(cycles_var, cycles)?;
-        info!(
-            "Sent {} LED blink cycles to the ULP",
-            ulp.read_var(cycles_var)?
-        );
-
-        ulp.start()?;
-        info!("RiscV ULP started");
-
-        esp!(esp_idf_sys::esp_sleep_enable_ulp_wakeup())?;
-        info!("Wakeup from ULP enabled");
-
-        // Wake up by a timer in 60 seconds
-        info!("About to get to sleep now. Will wake up automatically either in 1 minute, or once the ULP has done blinking the LED");
-        esp_idf_sys::esp_deep_sleep(Duration::from_secs(60).as_micros() as u64);
-    }
-
-    Ok(())
 }
 
 #[cfg(not(feature = "qemu"))]
