@@ -19,12 +19,12 @@ use std::net::Ipv4Addr;
 
 use crate::store;
 
-// #[allow(dead_code)]
-// #[cfg(not(feature = "qemu"))]
-// const SSID: &str = env!("RUST_ESP32_STD_DEMO_WIFI_SSID");
-// #[allow(dead_code)]
-// #[cfg(not(feature = "qemu"))]
-// const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
+#[allow(dead_code)]
+#[cfg(not(feature = "qemu"))]
+const SSID: &str = env!("RUST_ESP32_STD_DEMO_WIFI_SSID");
+#[allow(dead_code)]
+#[cfg(not(feature = "qemu"))]
+const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -78,6 +78,14 @@ impl Wlan {
         }) {
             Ok(_) => info!("Wifi started as host"),
             Err(e) => warn!("Wifi hosting failed: {}", e),
+        };
+
+        match sself.connect_to(Creds {
+            ssid: SSID.into(),
+            psk: PASS.into(),
+        }) {
+            Ok(_) => info!("Wifi connected to {}", SSID),
+            Err(e) => warn!("Wifi connecting failed: {}", e),
         };
 
         Ok(sself)
