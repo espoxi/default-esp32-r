@@ -7,7 +7,7 @@ use esp_idf_hal::peripheral;
 use esp_idf_svc::{eventloop::EspSystemEventLoop};
 
 use embedded_svc::wifi::AccessPointConfiguration;
-use esp_idf_svc::wifi::EspWifi;
+use esp_idf_svc::wifi::{self as w,EspWifi};
 use std::time::Duration;
 use esp_idf_svc::wifi::WifiWait;
 
@@ -82,7 +82,7 @@ let mut wifi = Box::new(EspWifi::new(modem, sysloop.clone(), None)?);
     if !EspNetifWait::new::<EspNetif>(wifi.sta_netif(), &sysloop)?.wait_with_timeout(
         Duration::from_secs(20),
         || {
-            wifi.is_connected().unwrap()
+            wifi.is_up().unwrap()
                 && wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
         },
     ) {
