@@ -21,6 +21,8 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 mod wifi;
 use wifi::Wifi;
 
+use self::wifi::testwifi;
+
 // use crate::connection::api::ApiEvent;
 
 mod api;
@@ -40,32 +42,35 @@ pub struct Connection<'a> {
 }
 
 impl<'a> Connection<'a> {
-    pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<Self> {
+    pub(crate) fn new(modem: Modem, store: &DStore, tx: Sender<Event>) -> anyhow::Result<()> {
         let sysloop = EspSystemEventLoop::take().unwrap();//TODO: this should be passed from main
-        let mut wifi = Wifi::new(modem, None, sysloop).expect("Failed to create wifi");
-        wifi.ap(Creds {
-            ssid: CONFIG.wifi_ssid.to_string(),
-            psk: CONFIG.wifi_psk.to_string(),
-        })
-        .expect("Failed to start AP");
 
-        if let Ok(creds) = Creds::from_store(store) {
-            //XXX: maybe also send this as an event?
-            if let Err(e) = wifi.client(creds) {
-                println!("Failed to connect to stored wifi: {}", e);
-            };
-        }
+        testwifi(modem, sysloop.clone(), "routerli", "--redacted--")?;//TODO: put the actual creds
+        // let mut wifi = Wifi::new(modem, None, sysloop.clone()).expect("Failed to create wifi");
+        // wifi.ap(Creds {
+        //     ssid: CONFIG.wifi_ssid.to_string(),
+        //     psk: CONFIG.wifi_psk.to_string(),
+        // })
+        // .expect("Failed to start AP");
 
-        let server_config = Configuration::default();
-        let server = EspHttpServer::new(&server_config)?;
+        // if let Ok(creds) = Creds::from_store(store) {
+        //     //XXX: maybe also send this as an event?
+        //     if let Err(e) = wifi.client(creds) {
+        //         println!("Failed to connect to stored wifi: {}", e);
+        //     };
+        // }
 
-        let conn = Self {
-            wifi: Some(wifi),
-            server,
-            tx,
-        };
+        // let server_config = Configuration::default();
+        // let server = EspHttpServer::new(&server_config)?;
 
-        Ok(conn)
+        // let conn = Self {
+        //     wifi: Some(wifi),
+        //     server,
+        //     tx,
+        // };
+
+        // Ok(conn)
+        Ok(())
     }
 
     pub(crate) fn start_service(&mut self, store: &mut DStore) -> anyhow::Result<()> {

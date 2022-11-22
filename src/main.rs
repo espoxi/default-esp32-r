@@ -26,20 +26,22 @@ fn inner_main<'b>() {
 
     let (tx, rx) = eventsystem::mk_queue();
 
-    let mut conn: Connection<'b> = match Connection::new(peripherals.modem, &store, tx.clone()) {
-        Ok(mut c) => match c.start_service(&mut store) {
-            Ok(_) => Some(c),
-            Err(e) => {
-                println!("Error starting service: {}", e);
-                None
-            }
-        },
-        Err(e) => {
-            println!("Failed to start server: {:?}", e);
-            None
-        }
-    }
-    .unwrap();
+    // let mut conn: Connection<'b> = match Connection::new(peripherals.modem, &store, tx.clone()) {
+    //     Ok(mut c) => match c.start_service(&mut store) {
+    //         Ok(_) => Some(c),
+    //         Err(e) => {
+    //             println!("Error starting service: {}", e);
+    //             None
+    //         }
+    //     },
+    //     Err(e) => {
+    //         println!("Failed to start server: {:?}", e);
+    //         None
+    //     }
+    // }
+    // .unwrap();
+    Connection::new(peripherals.modem, &store, tx.clone());
+
 
     let mut handler = EventHandler::init((tx, rx));
 
@@ -51,10 +53,10 @@ fn inner_main<'b>() {
 
     loop {
         let event = handler.channel.1.recv().unwrap();
-        let mut api_handler = api::ApiEventHandler::new(&mut conn, &mut store);
-        handler.handle(event, SubHandlers{
-            api_handler: &mut api_handler,
-        });
+        // let mut api_handler = api::ApiEventHandler::new(&mut conn, &mut store);
+        // handler.handle(event, SubHandlers{
+        //     api_handler: &mut api_handler,
+        // });
         internal_led.set_high().unwrap();
         // we are sleeping here to make sure the watchdog isn't triggered
         FreeRtos::delay_ms(500);

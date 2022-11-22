@@ -1,29 +1,107 @@
 // use std::sync::Arc;
 use anyhow::bail;
-use common::{store::DStore, events::wifi::Creds};
-use embedded_svc::{
-    wifi::{
-        self,
-        AccessPointConfiguration,
-        AuthMethod,
-        ClientConfiguration,
-        // Wifi as _,
-    },
+use common::{events::wifi::Creds, store::DStore};
+use embedded_svc::wifi::{
+    self,
+    AccessPointConfiguration,
+    AuthMethod,
+    ClientConfiguration, Configuration,
+    // Wifi as _,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    netif::{EspNetif, NetifConfiguration, NetifStack, EspNetifWait},
-    nvs::{EspDefaultNvsPartition},
-    wifi::{EspWifi, WifiDriver},
+    netif::{EspNetif, EspNetifWait, NetifConfiguration, NetifStack},
+    nvs::EspDefaultNvsPartition,
+    wifi::{EspWifi, WifiDriver, WifiWait},
 };
-use std::{result::Result::Ok, net::Ipv4Addr, time::Duration};
+use log::info;
+use std::{net::Ipv4Addr, result::Result::Ok, time::Duration};
 
-use esp_idf_hal::{delay::FreeRtos, modem::Modem};
+use esp_idf_hal::{delay::FreeRtos, modem::Modem, peripheral};
 use serde::{Deserialize, Serialize};
 
 use crate::connection::ping;
 
 // use log::info;
+
+pub fn testwifi(
+    modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
+    sysloop: EspSystemEventLoop,
+    SSID: &str,
+    PASS: &str,
+) -> anyhow::Result<Box<EspWifi<'static>>> {
+    use std::net::Ipv4Addr;
+
+    use esp_idf_svc::handle::RawHandle;
+
+    let mut wifi = Box::new(EspWifi::new(modem, sysloop.clone(), None)?);
+
+    println!("Wifi created, about to scan");
+
+    let ap_infos = wifi.scan()?;
+
+    let ours = ap_infos.into_iter().find(|a| a.ssid == SSID);
+
+    let channel = if let Some(ours) = ours {
+        println!(
+            "Found configured access point {} on channel {}",
+            SSID, ours.channel
+        );
+        Some(ours.channel)
+    } else {
+        println!(
+            "Configured access point {} not found during scanning, will go with unknown channel",
+            SSID
+        );
+        None
+    };
+
+    wifi.set_configuration(&Configuration::Mixed(
+        ClientConfiguration {
+            ssid: SSID.into(),
+            password: PASS.into(),
+            channel,
+            ..Default::default()
+        },
+        AccessPointConfiguration {
+            ssid: "aptest".into(),
+            channel: channel.unwrap_or(1),
+            ..Default::default()
+        },
+    ))?;
+
+    wifi.start()?;
+
+    println!("Starting wifi...");
+
+    if !WifiWait::new(&sysloop)?
+        .wait_with_timeout(Duration::from_secs(20), || wifi.is_started().unwrap())
+    {
+        bail!("Wifi did not start");
+    }
+
+    println!("Connecting wifi...");
+
+    wifi.connect()?;
+
+    if !EspNetifWait::new::<EspNetif>(wifi.sta_netif(), &sysloop)?.wait_with_timeout(
+        Duration::from_secs(20),
+        || {
+            // wifi.is_connected().unwrap() && 
+            wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
+        },
+    ) {
+        bail!("Wifi did not connect or did not receive a DHCP lease");
+    }
+
+    let ip_info = wifi.sta_netif().get_ip_info()?;
+
+    println!("Wifi DHCP info: {:?}", ip_info);
+
+    ping(ip_info.subnet.gateway)?;
+
+    Ok(wifi)
+}
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -39,8 +117,6 @@ struct WConfig {
     ap: Option<AccessPointConfiguration>,
 }
 
-
-
 pub struct Wifi<'a> {
     esp_wifi: EspWifi<'a>,
     config: WConfig,
@@ -48,8 +124,11 @@ pub struct Wifi<'a> {
 }
 
 impl<'a> Wifi<'a> {
-    pub fn new(modem: Modem, nvsp: Option<EspDefaultNvsPartition>,sysloop: EspSystemEventLoop) -> anyhow::Result<Self> {
-        
+    pub fn new(
+        modem: Modem,
+        nvsp: Option<EspDefaultNvsPartition>,
+        sysloop: EspSystemEventLoop,
+    ) -> anyhow::Result<Self> {
         let esp_wifi = EspWifi::new(
             modem,
             sysloop.clone(), //_or_else(return Err(anyhow::anyhow!("No system event loop"))),
@@ -156,15 +235,23 @@ impl<'a> Wifi<'a> {
             .sta_netif_mut()
             .set_mac(&[0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC])?;
 
+        if !WifiWait::new(&self.sysloop)?
+            .wait_with_timeout(Duration::from_secs(20), || self.esp_wifi.is_started().unwrap())
+        {
+            bail!("Wifi did not start");
+        }
+
         self.esp_wifi.connect()?;
 
-        if !EspNetifWait::new::<EspNetif>(self.esp_wifi.sta_netif(), &self.sysloop)?.wait_with_timeout(
-            Duration::from_secs(20),
-            || {
+        println!("netif wait");
+
+        if !EspNetifWait::new::<EspNetif>(self.esp_wifi.sta_netif(), &self.sysloop)?
+            .wait_with_timeout(Duration::from_secs(20), || {
                 self.esp_wifi.driver().is_connected().unwrap()
-                    && self.esp_wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
-            },
-        ) {
+                    && self.esp_wifi.sta_netif().get_ip_info().unwrap().ip
+                        != Ipv4Addr::new(0, 0, 0, 0)
+            })
+        {
             bail!("Wifi did not connect or did not receive a DHCP lease");
         }
 
@@ -199,7 +286,7 @@ impl<'a> Wifi<'a> {
         let ip_info = self.esp_wifi.sta_netif().get_ip_info()?;
 
         println!("Wifi DHCP info: {:?}", ip_info);
-    
+
         ping(ip_info.subnet.gateway)?;
 
         Ok(())
@@ -226,8 +313,7 @@ impl<'a> Wifi<'a> {
             WConfig {
                 client: Some(c),
                 ap: Some(ap),
-            } => 
-            wifi::Configuration::Mixed(c, ap),
+            } => wifi::Configuration::Mixed(c, ap),
             // wifi::Configuration::Client(c),
         };
 

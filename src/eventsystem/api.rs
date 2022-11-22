@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::bail;
-use common::{events::ApiEvent, store::{storeable::SelfStorable, DStore}};
+use common::{
+    events::ApiEvent,
+    store::{storeable::SelfStorable, DStore},
+};
 
 use crate::connection::Connection;
 
@@ -11,14 +14,11 @@ pub struct ApiEventHandler<'a, 'b> {
 }
 
 impl<'a, 'b> ApiEventHandler<'a, 'b> {
-    pub fn new(conn: &'a mut Connection<'b>, store : &'a mut DStore) -> Self {
-        Self { 
-            conn, 
-            store, 
-        }
+    pub fn new(conn: &'a mut Connection<'b>, store: &'a mut DStore) -> Self {
+        Self { conn, store }
     }
 
-    pub fn handle(&mut self, ae: ApiEvent)->anyhow::Result<()> {
+    pub fn handle(&mut self, ae: ApiEvent) -> anyhow::Result<()> {
         match ae {
             ApiEvent::ConnectToWifi(creds) => {
                 // println!("ssid: {}, psk: {}", creds.ssid, creds.psk);
@@ -29,10 +29,15 @@ impl<'a, 'b> ApiEventHandler<'a, 'b> {
                             Ok(_) => println!("stored wifi credentials"),
                             Err(e) => println!("failed to store wifi credentials: {}", e),
                         };
-                        let success = w.client(creds).is_ok();
+                        match w.client(creds) {
+                            Ok(()) => Ok(()),
+                            Err(e) => {
+                                println!("failed to connect t wifi: {}", e);
+                                Err(e)
+                            }
+                        }
                         //XXX: send more than just a bool, maybe complete err msg
                         // tx2.send(success)?;
-                        Ok(())
                     }
                     None => {
                         // tx2.send(false)?;
