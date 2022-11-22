@@ -34,32 +34,6 @@ pio = ["esp-idf-sys/pio"]
 # Enable this feature if you are building for QEMU
 qemu = []
 
-# Enable this feature in case you have a Kaluga board and would like to see a LED screen demo
-kaluga = []
-
-# Enable this feature in case you have a TTGO board and would like to see a LED screen demo
-ttgo = []
-
-# Enable this feature in case you have an ESP32S3-USB-OTG board and would like to see a LED screen demo
-heltec = []
-
-# Enable this feature in case you have a generic SSD1306 Display connected via SPI to pins 3, 4, 5, 16, 18, 23 (SPI3) of your board
-ssd1306g_spi = []
-
-# Enable this feature in case you have a generic SSD1306 screen connected to pins 14, 22 and 21 of your board
-ssd1306g = []
-
-esp32s3_usb_otg = []
-
-# Enable this feature in case you have a Waveshare board and 4.2" e-paper
-waveshare_epd = []
-
-# Enable this feature in case you have an RMII IP101 Ethernet adapter
-ip101 = []
-
-# Enable this feature in case you have an SPI W5500 Ethernet adapter
-w5500 = []
-
 experimental = ["esp-idf-svc/experimental", "embedded-svc/experimental"]
 
 [dependencies]

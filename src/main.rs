@@ -1,6 +1,8 @@
-#![allow(unused_imports)]
+// #![allow(unused_imports)]
 #![allow(clippy::single_component_path_imports)]
 //#![feature(backtrace)]
+
+mod connection;
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -30,80 +32,30 @@ compile_error!(
     "The `esp32s3_usb_otg` feature can only be built for the `xtensa-esp32s3-espidf` target."
 );
 
-use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::{Condvar, Mutex};
-use std::{cell::RefCell, env, sync::atomic::*, sync::Arc, thread, time::*};
+use std::{ env,  sync::Arc, thread, time::*};
 
 use anyhow::{bail, Result};
 
 use log::*;
 
-use url;
-
-use smol;
-
-use embedded_hal::adc::OneShot;
-use embedded_hal::blocking::delay::DelayMs;
-use embedded_hal::digital::v2::OutputPin;
-
-use embedded_svc::eth;
-use embedded_svc::io;
 use embedded_svc::ipv4;
-use embedded_svc::mqtt::client::{Client, Connection, MessageImpl, Publish, QoS};
-use embedded_svc::ping::Ping;
-use embedded_svc::sys_time::SystemTime;
-use embedded_svc::timer::TimerService;
-use embedded_svc::timer::*;
-use embedded_svc::utils::mqtt::client::ConnState;
-use embedded_svc::wifi::*;
 
-use esp_idf_svc::eth::*;
 use esp_idf_svc::eventloop::*;
-use esp_idf_svc::httpd as idf;
-use esp_idf_svc::httpd::ServerRegistry;
-use esp_idf_svc::mqtt::client::*;
-use esp_idf_svc::netif::*;
-use esp_idf_svc::nvs::*;
 use esp_idf_svc::ping;
 use esp_idf_svc::sntp;
 use esp_idf_svc::systime::EspSystemTime;
 use esp_idf_svc::timer::*;
-use esp_idf_svc::wifi::*;
 
 use esp_idf_hal::adc;
 use esp_idf_hal::delay;
 use esp_idf_hal::gpio;
-use esp_idf_hal::i2c;
-use esp_idf_hal::peripheral;
 use esp_idf_hal::prelude::*;
-use esp_idf_hal::spi;
 
 use esp_idf_sys::{self, c_types};
-use esp_idf_sys::{esp, EspError};
 
-use display_interface_spi::SPIInterfaceNoCS;
-
-use embedded_graphics::mono_font::{ascii::FONT_10X20, MonoTextStyle};
-use embedded_graphics::pixelcolor::*;
-use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::*;
-use embedded_graphics::text::*;
-
-use mipidsi;
-use ssd1306;
-use ssd1306::mode::DisplayConfig;
-
-use epd_waveshare::{epd4in2::*, graphics::VarDisplay, prelude::*};
-
-#[allow(dead_code)]
-#[cfg(not(feature = "qemu"))]
-const SSID: &str = env!("RUST_ESP32_STD_DEMO_WIFI_SSID");
-#[allow(dead_code)]
-#[cfg(not(feature = "qemu"))]
-const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 
 #[cfg(esp32s2)]
 include!(env!("EMBUILD_GENERATED_SYMBOLS_FILE"));
@@ -130,7 +82,7 @@ fn main() -> Result<()> {
     #[allow(clippy::redundant_clone)]
     #[cfg(not(feature = "qemu"))]
     #[allow(unused_mut)]
-    let mut wifi = wifi(peripherals.modem, sysloop.clone())?;
+    let mut wifi = connection::wifi::test_wifi(peripherals.modem, sysloop.clone())?;
 
     test_tcp()?;
 
@@ -293,7 +245,6 @@ fn test_tcp_bind() -> Result<()> {
 fn test_timer(
     eventloop: EspBackgroundEventLoop,
 ) -> Result<EspTimer> {
-    use embedded_svc::event_bus::Postbox;
 
     info!("About to schedule a one-shot timer for after 2 seconds");
     let once_timer = EspTimerService::new()?.timer(|| {
@@ -352,7 +303,6 @@ impl EspTypedEventDeserializer<EventLoopMessage> for EventLoopMessage {
 }
 
 fn test_eventloop() -> Result<(EspBackgroundEventLoop, EspBackgroundSubscription)> {
-    use embedded_svc::event_bus::EventBus;
 
     info!("About to start a background event loop");
     let eventloop = EspBackgroundEventLoop::new(&Default::default())?;
@@ -370,7 +320,6 @@ mod experimental {
     use super::{thread, TcpListener, TcpStream};
     use log::info;
 
-    use esp_idf_sys::c_types;
 
     pub fn test() -> anyhow::Result<()> {
         #[cfg(not(esp_idf_version = "4.3"))]
@@ -423,7 +372,7 @@ mod experimental {
     }
 
     fn test_https_client() -> anyhow::Result<()> {
-        use embedded_svc::http::{self, client::*, status, Headers, Status};
+        use embedded_svc::http::{client::*, };
         use embedded_svc::io::Read;
         use embedded_svc::utils::io;
         use esp_idf_svc::http::client::*;
@@ -463,7 +412,7 @@ mod experimental {
 fn httpd(
     mutex: Arc<(Mutex<Option<u32>>, Condvar)>,
 ) -> Result<esp_idf_svc::http::server::EspHttpServer> {
-    use embedded_svc::http::server::{Method, Request, Response};
+    use embedded_svc::http::server::{Method};
     use embedded_svc::io::Write;
 
     let mut server = esp_idf_svc::http::server::EspHttpServer::new(&Default::default())?;
@@ -489,85 +438,6 @@ fn httpd(
         })?;
 
     Ok(server)
-}
-
-#[cfg(not(feature = "qemu"))]
-#[allow(dead_code)]
-fn wifi(
-    modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
-    sysloop: EspSystemEventLoop,
-) -> Result<Box<EspWifi<'static>>> {
-    use std::net::Ipv4Addr;
-
-    use esp_idf_svc::handle::RawHandle;
-
-    let mut wifi = Box::new(EspWifi::new(modem, sysloop.clone(), None)?);
-
-    info!("Wifi created, about to scan");
-
-    let ap_infos = wifi.scan()?;
-
-    let ours = ap_infos.into_iter().find(|a| a.ssid == SSID);
-
-    let channel = if let Some(ours) = ours {
-        info!(
-            "Found configured access point {} on channel {}",
-            SSID, ours.channel
-        );
-        Some(ours.channel)
-    } else {
-        info!(
-            "Configured access point {} not found during scanning, will go with unknown channel",
-            SSID
-        );
-        None
-    };
-
-    wifi.set_configuration(&Configuration::Mixed(
-        ClientConfiguration {
-            ssid: SSID.into(),
-            password: PASS.into(),
-            channel,
-            ..Default::default()
-        },
-        AccessPointConfiguration {
-            ssid: "aptest".into(),
-            channel: channel.unwrap_or(1),
-            ..Default::default()
-        },
-    ))?;
-
-    wifi.start()?;
-
-    info!("Starting wifi...");
-
-    if !WifiWait::new(&sysloop)?
-        .wait_with_timeout(Duration::from_secs(20), || wifi.is_started().unwrap())
-    {
-        bail!("Wifi did not start");
-    }
-
-    info!("Connecting wifi...");
-
-    wifi.connect()?;
-
-    if !EspNetifWait::new::<EspNetif>(wifi.sta_netif(), &sysloop)?.wait_with_timeout(
-        Duration::from_secs(20),
-        || {
-            wifi.is_connected().unwrap()
-                && wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
-        },
-    ) {
-        bail!("Wifi did not connect or did not receive a DHCP lease");
-    }
-
-    let ip_info = wifi.sta_netif().get_ip_info()?;
-
-    info!("Wifi DHCP info: {:?}", ip_info);
-
-    ping(ip_info.subnet.gateway)?;
-
-    Ok(wifi)
 }
 
 
