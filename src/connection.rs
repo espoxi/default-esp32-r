@@ -1,3 +1,5 @@
+use std::thread;
+
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
 use esp_idf_hal::peripheral;
@@ -24,33 +26,53 @@ pub struct Config {
 }
 
 pub fn init(
-    modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
+    modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
-    store: &DStore,
+    store: &'static DStore,
 ) -> Result<()> {
-    info!("Initializing wifi...");
-    let mut wifi = Wlan::start(modem, sysloop)?;
-
-    info!("Connecting to stored wifi...");
-    if let Ok(creds) = Creds::from_store(store) {
-        match wifi.connect_to(creds) {
-            Err(e) => warn!("Failed to connect to stored wifi: {}", e),
-            Ok(_) => info!("Connected to stored wifi"),
+    let (tx, rx) = std::sync::mpsc::channel();
+    thread::spawn(move || {
+        info!("Initializing wifi...");
+        let mut wifi = match Wlan::start(modem, sysloop) {
+            Ok(w) => w,
+            Err(e) => {
+                warn!("Failed to start wifi: {}", e);
+                tx.send(Err(e));
+                return;
+            }
         };
-    } else {
-        info!("No stored wifi credentials, we will start our own access point");
-        match wifi.host_as(Creds {
-            ssid: CONFIG.wifi_ssid.into(),
-            psk: CONFIG.wifi_psk.into(),
-        }) {
-            Ok(_) => info!("Wifi started as host"),
-            Err(e) => warn!("Wifi hosting failed: {}", e),
-        };
-    }
 
-    info!("Initializing http server...");
-    let mut server = server::init_server()?;
-    add_connect_route(&mut server)?;
+        info!("Connecting to stored wifi...");
+        if let Ok(creds) = Creds::from_store(store) {
+            match wifi.connect_to(creds) {
+                Err(e) => warn!("Failed to connect to stored wifi: {}", e),
+                Ok(_) => info!("Connected to stored wifi"),
+            };
+        } else {
+            info!("No stored wifi credentials, we will start our own access point");
+            match wifi.host_as(Creds {
+                ssid: CONFIG.wifi_ssid.into(),
+                psk: CONFIG.wifi_psk.into(),
+            }) {
+                Ok(_) => info!("Wifi started as host"),
+                Err(e) => warn!("Wifi hosting failed: {}", e),
+            };
+        }
+
+        info!("Initializing http server...");
+        let mut server = match server::init_server() {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Failed to start http server: {}", e);
+                tx.send(Err(e));
+                return;
+            }
+        };
+
+        add_connect_route(&mut server).unwrap();
+        tx.send(Ok(()));
+        loop {}
+    });
 
     Ok(())
 }

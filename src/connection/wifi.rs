@@ -240,16 +240,16 @@ impl store::SelfStorable for Creds {
         Self { ssid, psk }
     }
 
-    fn from_store(store: &store::DStore) -> anyhow::Result<Self> {
-        match store.get::<Self>("main_creds") {
+    fn from_store(sstore: &store::DStore) -> anyhow::Result<Self> {
+        match sstore.get::<Self>("main_creds") {
             Ok(Some(creds)) => Ok(creds),
             Ok(None) => bail!("No credentials found in store"),
             Err(e) => bail!("Failed to get credentials from store: {}", e),
         }
     }
 
-    fn store_in(&self, store: &mut store::DStore) -> anyhow::Result<()> {
-        match store.set("main_creds", self) {
+    fn store_in(&self, sstore: &mut store::DStore) -> anyhow::Result<()> {
+        match sstore.set("main_creds", self) {
             Ok(_) => Ok(()),
             Err(e) => bail!("Failed to store credentials in store: {}", e),
         }

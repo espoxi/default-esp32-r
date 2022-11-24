@@ -24,6 +24,7 @@ use esp_idf_hal::prelude::*;
 
 use esp_idf_sys::{self, c_types};
 
+static store:store::DStore = store::default();
 
 fn main() -> Result<()> {
     esp_idf_sys::link_patches();
@@ -42,8 +43,6 @@ fn main() -> Result<()> {
     let pins = peripherals.pins;
 
     let sysloop = EspSystemEventLoop::take()?;
-
-    let store = store::default();
 
     #[cfg(not(feature = "qemu"))]
     connection::init(peripherals.modem, sysloop.clone(), &store)?;
