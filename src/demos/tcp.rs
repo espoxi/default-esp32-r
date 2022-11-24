@@ -81,43 +81,43 @@ pub fn test_tcp_bind() -> Result<()> {
 }
 
 
-#[cfg(not(esp_idf_version = "4.3"))]
-pub fn test_tcp_bind_async() -> anyhow::Result<()> {
-    async fn test_tcp_bind() -> smol::io::Result<()> {
-        /// Echoes messages from the client back to it.
-        async fn echo(stream: smol::Async<TcpStream>) -> smol::io::Result<()> {
-            smol::io::copy(&stream, &mut &stream).await?;
-            Ok(())
-        }
+// #[cfg(not(esp_idf_version = "4.3"))]
+// pub fn test_tcp_bind_async() -> anyhow::Result<()> {
+//     async fn test_tcp_bind() -> smol::io::Result<()> {
+//         /// Echoes messages from the client back to it.
+//         async fn echo(stream: smol::Async<TcpStream>) -> smol::io::Result<()> {
+//             smol::io::copy(&stream, &mut &stream).await?;
+//             Ok(())
+//         }
 
-        // Create a listener.
-        let listener = smol::Async::<TcpListener>::bind(([0, 0, 0, 0], 8081))?;
+//         // Create a listener.
+//         let listener = smol::Async::<TcpListener>::bind(([0, 0, 0, 0], 8081))?;
 
-        // Accept clients in a loop.
-        loop {
-            let (stream, peer_addr) = listener.accept().await?;
-            info!("Accepted client: {}", peer_addr);
+//         // Accept clients in a loop.
+//         loop {
+//             let (stream, peer_addr) = listener.accept().await?;
+//             info!("Accepted client: {}", peer_addr);
 
-            // Spawn a task that echoes messages from the client back to it.
-            smol::spawn(echo(stream)).detach();
-        }
-    }
+//             // Spawn a task that echoes messages from the client back to it.
+//             smol::spawn(echo(stream)).detach();
+//         }
+//     }
 
-    info!("About to bind a simple echo service to port 8081 using async (smol-rs)!");
+//     info!("About to bind a simple echo service to port 8081 using async (smol-rs)!");
 
-    #[allow(clippy::needless_update)]
-    {
-        esp_idf_sys::esp!(unsafe {
-            esp_idf_sys::esp_vfs_eventfd_register(&esp_idf_sys::esp_vfs_eventfd_config_t {
-                max_fds: 5,
-                ..Default::default()
-            })
-        })?;
-    }
+//     #[allow(clippy::needless_update)]
+//     {
+//         esp_idf_sys::esp!(unsafe {
+//             esp_idf_sys::esp_vfs_eventfd_register(&esp_idf_sys::esp_vfs_eventfd_config_t {
+//                 max_fds: 5,
+//                 ..Default::default()
+//             })
+//         })?;
+//     }
 
-    thread::Builder::new().stack_size(4096).spawn(move || {
-        smol::block_on(test_tcp_bind()).unwrap();
-    })?;
+//     thread::Builder::new().stack_size(4096).spawn(move || {
+//         smol::block_on(test_tcp_bind()).unwrap();
+//     })?;
 
-    Ok(())
-}
+//     Ok(())
+// }

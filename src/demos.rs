@@ -5,6 +5,6 @@ pub fn demo_all()-> anyhow::Result<()> {
 
     tcp::test_tcp_bind()?;
 
-    tcp::test_tcp_bind_async()?;
+    // tcp::test_tcp_bind_async()?;
     Ok(())
 }
