@@ -28,7 +28,7 @@ pub struct Config {
 pub fn init(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
-    store: &'static DStore,
+    sstore: & DStore,
 ) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     thread::spawn(move || {
@@ -43,7 +43,7 @@ pub fn init(
         };
 
         info!("Connecting to stored wifi...");
-        if let Ok(creds) = Creds::from_store(store) {
+        if let Ok(creds) = Creds::from_store(sstore) {
             match wifi.connect_to(creds) {
                 Err(e) => warn!("Failed to connect to stored wifi: {}", e),
                 Ok(_) => info!("Connected to stored wifi"),
