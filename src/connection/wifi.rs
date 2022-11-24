@@ -17,14 +17,15 @@ use esp_idf_svc::netif::{EspNetif, EspNetifWait};
 
 use std::net::Ipv4Addr;
 
+use crate::connection::ping;
 use crate::store;
 
-#[allow(dead_code)]
-#[cfg(not(feature = "qemu"))]
-const SSID: &str = env!("RUST_ESP32_STD_DEMO_WIFI_SSID");
-#[allow(dead_code)]
-#[cfg(not(feature = "qemu"))]
-const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
+// #[allow(dead_code)]
+// #[cfg(not(feature = "qemu"))]
+// const SSID: &str = env!("RUST_ESP32_STD_DEMO_WIFI_SSID");
+// #[allow(dead_code)]
+// #[cfg(not(feature = "qemu"))]
+// const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -80,13 +81,13 @@ impl Wlan {
             Err(e) => warn!("Wifi hosting failed: {}", e),
         };
 
-        match sself.connect_to(Creds {
-            ssid: SSID.into(),
-            psk: PASS.into(),
-        }) {
-            Ok(_) => info!("Wifi connected to {}", SSID),
-            Err(e) => warn!("Wifi connecting failed: {}", e),
-        };
+        // match sself.connect_to(Creds {
+        //     ssid: SSID.into(),
+        //     psk: PASS.into(),
+        // }) {
+        //     Ok(_) => info!("Wifi connected to {}", SSID),
+        //     Err(e) => warn!("Wifi connecting failed: {}", e),
+        // };
 
         Ok(sself)
     }
@@ -143,19 +144,20 @@ impl Wlan {
 
         self.wifi.connect()?;
 
-        if !EspNetifWait::new::<EspNetif>(self.wifi.sta_netif(), &self.event_loop)?.wait_with_timeout(
-            Duration::from_secs(20),
-            || {
+        if !EspNetifWait::new::<EspNetif>(self.wifi.sta_netif(), &self.event_loop)?
+            .wait_with_timeout(Duration::from_secs(20), || {
                 self.wifi.is_up().unwrap()
                     && self.wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
-            },
-        ) {
+            })
+        {
             bail!("Wifi did not connect or did not receive a DHCP lease");
         }
 
         let ip_info = self.wifi.sta_netif().get_ip_info()?;
 
         info!("Wifi DHCP info: {:?}", ip_info);
+
+        ping(ip_info.subnet.gateway)?;
 
         Ok(())
     }
