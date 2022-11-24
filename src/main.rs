@@ -11,6 +11,8 @@ use std::{env, sync::Arc, thread, time::*};
 
 use anyhow::{bail, Result};
 
+use esp_idf_hal::delay::FreeRtos;
+use esp_idf_hal::gpio::PinDriver;
 use log::*;
 
 use esp_idf_svc::eventloop::*;
@@ -18,21 +20,10 @@ use esp_idf_svc::sntp;
 use esp_idf_svc::systime::EspSystemTime;
 use esp_idf_svc::timer::*;
 
-use esp_idf_hal::adc;
 use esp_idf_hal::prelude::*;
 
 use esp_idf_sys::{self, c_types};
 
-use crate::connection::server::init_httpd;
-use crate::connection::wifi::Creds;
-
-#[toml_cfg::toml_config]
-pub struct Config {
-    #[default("")]
-    wifi_ssid: &'static str,
-    #[default("")]
-    wifi_psk: &'static str,
-}
 
 fn main() -> Result<()> {
     esp_idf_sys::link_patches();
@@ -50,25 +41,13 @@ fn main() -> Result<()> {
     #[allow(unused)]
     let pins = peripherals.pins;
 
-    #[allow(unused)]
     let sysloop = EspSystemEventLoop::take()?;
 
-    #[allow(clippy::redundant_clone)]
-    #[cfg(not(feature = "qemu"))]
-    let mut wifi = connection::wifi::Wlan::start(peripherals.modem, sysloop.clone())?;
-    match wifi.host_as(Creds {
-        ssid: CONFIG.wifi_ssid.into(),
-        psk: CONFIG.wifi_psk.into(),
-    }) {
-        Ok(_) => info!("Wifi started as host"),
-        Err(e) => warn!("Wifi hosting failed: {}", e),
-    };
-    wifi.connect_to(Creds {
-        ssid: "----".into(),
-        psk: "----".into(),
-    })?;
+    let store = store::default();
 
-    demos::demo_all()?;
+    #[cfg(not(feature = "qemu"))]
+    connection::init(peripherals.modem, sysloop.clone(), &store)?;
+
 
     let _sntp = sntp::EspSntp::new_default()?;
     info!("SNTP initialized");
@@ -77,63 +56,14 @@ fn main() -> Result<()> {
 
     let _timer = test_timer(eventloop)?;
 
-    #[cfg(feature = "experimental")]
-    let mutex = Arc::new((Mutex::new(None), Condvar::new()));
+    
+    let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
+    loop{
+        builtin_led.set_high().unwrap();
+        FreeRtos::delay_ms(500);
 
-    let httpd = init_httpd(mutex.clone())?;
-
-    // let mut wait = mutex.0.lock().unwrap();
-
-    // #[cfg(esp32)]
-    // let mut hall_sensor = peripherals.hall_sensor;
-
-    // #[cfg(esp32)]
-    // let adc_pin = pins.gpio34;
-    // #[cfg(any(esp32s2, esp32s3, esp32c3))]
-    // let adc_pin = pins.gpio2;
-
-    // let mut a2 = adc::AdcChannelDriver::<_, adc::Atten11dB<adc::ADC1>>::new(adc_pin)?;
-
-    // let mut powered_adc1 = adc::AdcDriver::new(
-    //     peripherals.adc1,
-    //     &adc::config::Config::new().calibration(true),
-    // )?;
-
-    // #[allow(unused)]
-    // let cycles = loop {
-    //     if let Some(cycles) = *wait {
-    //         break cycles;
-    //     } else {
-    //         wait = mutex
-    //             .1
-    //             .wait_timeout(wait, Duration::from_secs(1))
-    //             .unwrap()
-    //             .0;
-
-    //         // #[cfg(esp32)]
-    //         // log::info!(
-    //         //     "Hall sensor reading: {}mV",
-    //         //     powered_adc1.read_hall(&mut hall_sensor).unwrap()
-    //         // );
-    //         // log::info!(
-    //         //     "A2 sensor reading: {}mV",
-    //         //     powered_adc1.read(&mut a2).unwrap()
-    //         // );
-    //     }
-    // };
-
-    for s in 0..3 {
-        info!("Shutting down in {} secs", 3 - s);
-        thread::sleep(Duration::from_secs(1));
-    }
-
-    drop(httpd);
-    info!("Httpd stopped");
-
-    #[cfg(not(feature = "qemu"))]
-    {
-        drop(wifi);
-        info!("Wifi stopped");
+        builtin_led.set_low().unwrap();
+        FreeRtos::delay_ms(500);
     }
 
     Ok(())

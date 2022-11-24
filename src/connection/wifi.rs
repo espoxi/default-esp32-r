@@ -57,7 +57,7 @@ impl Wlan {
             bail!("Wifi did not start");
         }
 
-        let mut sself = Self {
+        let sself = Self {
             wifi,
             event_loop: sysloop.clone(),
             config: WConfig {
@@ -65,22 +65,6 @@ impl Wlan {
                 ap: None,
             },
         };
-
-        // match sself.host_as(Creds {
-        //     ssid: CONFIG.wifi_ssid.into(),
-        //     psk: CONFIG.wifi_psk.into(),
-        // }) {
-        //     Ok(_) => info!("Wifi started as host"),
-        //     Err(e) => warn!("Wifi hosting failed: {}", e),
-        // };
-
-        // match sself.connect_to(Creds {
-        //     ssid: SSID.into(),
-        //     psk: PASS.into(),
-        // }) {
-        //     Ok(_) => info!("Wifi connected to {}", SSID),
-        //     Err(e) => warn!("Wifi connecting failed: {}", e),
-        // };
 
         Ok(sself)
     }

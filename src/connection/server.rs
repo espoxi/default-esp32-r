@@ -1,37 +1,79 @@
 
-use std::sync::{Mutex, Condvar, Arc};
-use anyhow::Result;
 
-use embedded_svc::http::server::{Method};
-use embedded_svc::io::Write;
+use anyhow::{Result, bail};
+
+use embedded_svc::http::server::{Method, Request};
+use embedded_svc::io::{Write, Read};
+use esp_idf_svc::http::server::EspHttpConnection;
+use serde::de;
+
+use super::wifi::Creds;
 
 
-#[allow(unused_variables)]
+
 #[cfg(feature = "experimental")]
-pub fn init_httpd(
-    mutex: Arc<(Mutex<Option<u32>>, Condvar)>,
+pub fn init_server(
+
 ) -> Result<esp_idf_svc::http::server::EspHttpServer> {
     let mut server = esp_idf_svc::http::server::EspHttpServer::new(&Default::default())?;
 
     server
         .fn_handler("/", Method::Get, |req| {
             req.into_ok_response()?
-                .write_all("Hello from Rust!".as_bytes())?;
-
+                .write_all(index_html().as_bytes())?;
             Ok(())
-        })?
-        .fn_handler("/foo", Method::Get, |_req| {
-            Result::Err("Boo, something happened!".into())
-        })?
-        .fn_handler("/bar", Method::Get, |req| {
-            req.into_response(403, Some("No permissions"), &[])?
-                .write_all("You have no permissions to access this page".as_bytes())?;
-
-            Ok(())
-        })?
-        .fn_handler("/panic", Method::Get, |_req| {
-            panic!("User requested a panic!")
         })?;
-
     Ok(server)
+}
+
+pub fn add_connect_route(server: &mut esp_idf_svc::http::server::EspHttpServer) -> Result<()> {
+    server
+        .fn_handler("/connect", Method::Post, |mut req| {
+            let mut buf = Vec::new();
+            let creds: Creds = parse_req_json_to(&mut req, &mut buf)?;
+            //TODO: connect to wifi
+            println!("Got creds: {:?}", creds);
+            req.into_ok_response()?
+                .write_all(index_html().as_bytes())?;
+            Ok(())
+        })?;
+    Ok(())
+}
+
+// const BODY_BUFFER_SIZE: u16 = 1024;
+fn parse_req_json_to<'a, T>(r: &mut Request<&mut EspHttpConnection>, buf: &'a mut [u8]) -> anyhow::Result<T> where
+T: de::Deserialize<'a>+Clone,{
+    // let mut buf = Vec::new();//[0u8; BODY_BUFFER_SIZE as usize];
+    let len = r.read(buf)?;
+    let data = match serde_json::from_slice::<T>(&buf[0..len]){
+        Ok(t) => t,
+        Err(e) => bail!("Failed to parse request body: {}", e),
+    };
+    Ok(data)
+}
+
+#[allow(dead_code)]
+fn templated(content: impl AsRef<str>) -> String {templated_with_head(content, "")}
+fn templated_with_head(content: impl AsRef<str>, head: impl AsRef<str>,) -> String {
+    format!(
+        r#"
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta charset="utf-8">
+                {}
+                <title>esp-rs web server</title>
+            </head>
+            <body>
+                {}
+            </body>
+        </html>
+        "#,
+        head.as_ref(),
+        content.as_ref(),
+    )
+}
+
+fn index_html() -> String {
+    templated_with_head("Please download the app", r#"<meta http-equiv="Refresh" content="0; URL=https://example.com/" />"#)
 }
