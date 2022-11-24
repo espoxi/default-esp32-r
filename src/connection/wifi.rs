@@ -27,13 +27,6 @@ use crate::store;
 // #[cfg(not(feature = "qemu"))]
 // const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 
-#[toml_cfg::toml_config]
-pub struct Config {
-    #[default("")]
-    wifi_ssid: &'static str,
-    #[default("")]
-    wifi_psk: &'static str,
-}
 
 pub struct Wlan {
     wifi: Box<EspWifi<'static>>,
@@ -73,13 +66,13 @@ impl Wlan {
             },
         };
 
-        match sself.host_as(Creds {
-            ssid: CONFIG.wifi_ssid.into(),
-            psk: CONFIG.wifi_psk.into(),
-        }) {
-            Ok(_) => info!("Wifi started as host"),
-            Err(e) => warn!("Wifi hosting failed: {}", e),
-        };
+        // match sself.host_as(Creds {
+        //     ssid: CONFIG.wifi_ssid.into(),
+        //     psk: CONFIG.wifi_psk.into(),
+        // }) {
+        //     Ok(_) => info!("Wifi started as host"),
+        //     Err(e) => warn!("Wifi hosting failed: {}", e),
+        // };
 
         // match sself.connect_to(Creds {
         //     ssid: SSID.into(),
