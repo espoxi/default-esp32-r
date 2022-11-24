@@ -43,7 +43,7 @@ fn main() -> Result<()> {
     let pins = peripherals.pins;
 
     let sysloop = EspSystemEventLoop::take()?;    
-    let store =  store::default();
+    let store =  store::default();//Todo: wrap in Arc?
 
 
     #[cfg(not(feature = "qemu"))]
