@@ -119,6 +119,6 @@ fn templated_with_head(content: impl AsRef<str>, head: impl AsRef<str>) -> Strin
 fn index_html() -> String {
     templated_with_head(
         "Please download the app",
-        r#"<meta http-equiv="Refresh" content="0; URL=https://example.com/" />"#,
+        r#"<meta http-equiv="Refresh" content="0; URL=https://espoxi.github.io/" />"#,
     )
 }
