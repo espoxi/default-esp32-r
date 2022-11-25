@@ -2,6 +2,9 @@ use anyhow::bail;
 use anyhow::Result;
 use embedded_svc::wifi::AuthMethod;
 use embedded_svc::wifi::ClientConfiguration;
+use esp_idf_svc::netif::NetifConfiguration;
+use esp_idf_svc::netif::NetifStack;
+use esp_idf_svc::wifi::WifiDriver;
 #[allow(unused_imports)]
 use log::{info, warn};
 
@@ -29,7 +32,6 @@ use crate::store;
 // #[cfg(not(feature = "qemu"))]
 // const PASS: &str = env!("RUST_ESP32_STD_DEMO_WIFI_PASS");
 
-
 pub struct Wlan {
     wifi: Box<EspWifi<'static>>,
     event_loop: EspSystemEventLoop,
@@ -42,12 +44,32 @@ struct WConfig {
     ap: Option<AccessPointConfiguration>,
 }
 
+const NAME: &str = env!("CARGO_PKG_NAME");
 impl Wlan {
     pub fn start(
         modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
         sysloop: EspSystemEventLoop,
     ) -> Result<Self> {
-        let mut wifi = Box::new(EspWifi::new(modem, sysloop.clone(), None)?);
+        let ipv4_client_cfg =
+            embedded_svc::ipv4::ClientConfiguration::DHCP(embedded_svc::ipv4::DHCPClientSettings {
+                hostname: Some(heapless::String::<30>::from(NAME)),
+                ..Default::default()
+            });
+        let new_c = NetifConfiguration {
+            ip_configuration: embedded_svc::ipv4::Configuration::Client(ipv4_client_cfg),
+            ..NetifConfiguration::wifi_default_client()
+        };
+
+        let esp_wifi = EspWifi::wrap_all(
+            WifiDriver::new(
+                modem,
+                EspSystemEventLoop::take().unwrap(), //XXX: if i need to use the sysloop i need to pass it here
+                None,
+            )?,
+            EspNetif::new_with_conf(&new_c)?,
+            EspNetif::new(NetifStack::Ap)?,
+        )?;
+        let mut wifi = Box::new(esp_wifi);
 
         wifi.start()?;
 
