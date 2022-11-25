@@ -2,7 +2,7 @@ use std::sync::mpsc::Sender;
 
 use anyhow::{bail, Result};
 
-use embedded_svc::http::server::{Method, Request, HandlerError};
+use embedded_svc::http::server::{HandlerError, Method, Request};
 use embedded_svc::io::{Read, Write};
 use esp_idf_svc::http::server::EspHttpConnection;
 use log::info;
@@ -38,14 +38,15 @@ pub fn add_connect_route(
         match parse_req_json_to(&mut req, buf) {
             Ok(creds) => {
                 info!("Got creds: {:?}", creds);
-                tx.send(super::ConnectionEvent::ConnectToWifi(creds)).unwrap();
+                tx.send(super::ConnectionEvent::ConnectToWifi(creds))
+                    .unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())
             }
             Err(e) => {
-                let info = format!("failed to parse creds: {}",e);
+                let info = format!("failed to parse creds: {}", e);
                 req.into_status_response(400)?.write_all(info.as_bytes())?;
-                handler_bail!("{}",info)
+                handler_bail!("{}", info)
             }
         }
     })?;
@@ -65,15 +66,14 @@ pub fn add_rename_route(
                 Ok(())
             }
             Err(e) => {
-                let info = format!("failed to parse creds: {}",e);
+                let info = format!("failed to parse creds: {}", e);
                 req.into_status_response(400)?.write_all(info.as_bytes())?;
-                handler_bail!("{}",info)
+                handler_bail!("{}", info)
             }
         }
     })?;
     Ok(())
 }
-
 
 // const BODY_BUFFER_SIZE: u16 = 1024;
 fn parse_req_json_to<'a, T>(

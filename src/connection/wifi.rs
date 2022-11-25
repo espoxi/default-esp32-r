@@ -61,11 +61,7 @@ impl Wlan {
         };
 
         let esp_wifi = EspWifi::wrap_all(
-            WifiDriver::new(
-                modem,
-                sysloop.clone(),
-                None,
-            )?,
+            WifiDriver::new(modem, sysloop.clone(), None)?,
             EspNetif::new_with_conf(&new_c)?,
             EspNetif::new(NetifStack::Ap)?,
         )?;

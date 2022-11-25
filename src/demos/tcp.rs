@@ -1,9 +1,11 @@
-use std::{net::{TcpStream, TcpListener}, thread, io::{Write, Read}};
+use std::{
+    io::{Read, Write},
+    net::{TcpListener, TcpStream},
+    thread,
+};
 
 use anyhow::Result;
-use log::{info, error};
-
-
+use log::{error, info};
 
 pub fn test_tcp() -> Result<()> {
     info!("About to open a TCP connection to 1.1.1.1 port 80");
@@ -79,7 +81,6 @@ pub fn test_tcp_bind() -> Result<()> {
 
     Ok(())
 }
-
 
 // #[cfg(not(esp_idf_version = "4.3"))]
 // pub fn test_tcp_bind_async() -> anyhow::Result<()> {

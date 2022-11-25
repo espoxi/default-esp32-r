@@ -45,13 +45,11 @@ fn main() -> Result<()> {
     #[allow(unused)]
     let pins = peripherals.pins;
 
-    let sysloop = EspSystemEventLoop::take()?;    
-    let store =  Arc::new(Mutex::new(store::default()));
-
+    let sysloop = EspSystemEventLoop::take()?;
+    let store = Arc::new(Mutex::new(store::default()));
 
     #[cfg(not(feature = "qemu"))]
     connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
-
 
     let _sntp = sntp::EspSntp::new_default()?;
     info!("SNTP initialized");
@@ -60,16 +58,14 @@ fn main() -> Result<()> {
 
     let _timer = test_timer(eventloop)?;
 
-    
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
-    loop{
+    loop {
         builtin_led.set_high().unwrap();
         FreeRtos::delay_ms(500);
 
         builtin_led.set_low().unwrap();
         FreeRtos::delay_ms(500);
     }
-
 }
 
 fn test_timer(eventloop: EspBackgroundEventLoop) -> Result<EspTimer> {

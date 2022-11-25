@@ -6,7 +6,6 @@ use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition};
 use postcard::{from_bytes, to_stdvec};
 use serde::{de::DeserializeOwned, Serialize};
 
-
 const STORAGE_RWBUFFER_SIZE: usize = 1024;
 pub type DStore = StorageImpl<STORAGE_RWBUFFER_SIZE, EspDefaultNvs, PostCardSerDe>;
 
@@ -52,10 +51,12 @@ pub fn default() -> DStore {
 }
 // }
 
-pub trait SelfStorable{
-    fn new(ssid: String, psk: String) -> Self ;
+pub trait SelfStorable {
+    fn new(ssid: String, psk: String) -> Self;
 
-    fn from_store(store: &DStore) -> anyhow::Result<Self> where Self: Sized;
+    fn from_store(store: &DStore) -> anyhow::Result<Self>
+    where
+        Self: Sized;
 
-    fn store_in(&self, store:&mut DStore) -> anyhow::Result<()>;
+    fn store_in(&self, store: &mut DStore) -> anyhow::Result<()>;
 }

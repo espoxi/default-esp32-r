@@ -1,7 +1,7 @@
 use log::info;
 
 pub fn test_https_client() -> anyhow::Result<()> {
-    use embedded_svc::http::{client::*, };
+    use embedded_svc::http::client::*;
     use embedded_svc::io::Read;
     use embedded_svc::utils::io;
     use esp_idf_svc::http::client::*;

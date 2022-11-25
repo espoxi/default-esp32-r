@@ -1,4 +1,7 @@
-use std::{sync::{Arc, Mutex}, thread};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;

@@ -1,6 +1,6 @@
 pub mod tcp;
 
-pub fn demo_all()-> anyhow::Result<()> {
+pub fn demo_all() -> anyhow::Result<()> {
     tcp::test_tcp()?;
 
     tcp::test_tcp_bind()?;
