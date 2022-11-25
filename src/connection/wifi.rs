@@ -2,6 +2,7 @@ use anyhow::bail;
 use anyhow::Result;
 use embedded_svc::wifi::AuthMethod;
 use embedded_svc::wifi::ClientConfiguration;
+#[allow(unused_imports)]
 use log::{info, warn};
 
 use esp_idf_hal::peripheral;
@@ -9,6 +10,7 @@ use esp_idf_svc::eventloop::EspSystemEventLoop;
 
 use embedded_svc::wifi::AccessPointConfiguration;
 use esp_idf_svc::wifi::WifiWait;
+#[allow(unused_imports)]
 use esp_idf_svc::wifi::{self as w, EspWifi};
 use std::time::Duration;
 

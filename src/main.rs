@@ -6,9 +6,12 @@ mod connection;
 mod demos;
 mod store;
 
+#[allow(unused_imports)]
 use std::sync::{Condvar, Mutex};
+#[allow(unused_imports)]
 use std::{env, sync::Arc, thread, time::*};
 
+#[allow(unused_imports)]
 use anyhow::{bail, Result};
 
 use esp_idf_hal::delay::FreeRtos;
@@ -67,7 +70,6 @@ fn main() -> Result<()> {
         FreeRtos::delay_ms(500);
     }
 
-    Ok(())
 }
 
 fn test_timer(eventloop: EspBackgroundEventLoop) -> Result<EspTimer> {
