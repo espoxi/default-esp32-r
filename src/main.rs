@@ -5,6 +5,7 @@
 mod connection;
 mod demos;
 mod store;
+mod strip;
 
 #[allow(unused_imports)]
 use std::sync::{Condvar, Mutex};
@@ -50,6 +51,8 @@ fn main() -> Result<()> {
 
     #[cfg(not(feature = "qemu"))]
     connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
+
+    let neopixelz = strip::StripConfig::ws2812b(pins.gpio3, 30);
 
     let _sntp = sntp::EspSntp::new_default()?;
     info!("SNTP initialized");
