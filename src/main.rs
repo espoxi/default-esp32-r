@@ -43,11 +43,11 @@ fn main() -> Result<()> {
     let pins = peripherals.pins;
 
     let sysloop = EspSystemEventLoop::take()?;    
-    let store =  store::default();
+    let store =  Arc::new(store::default());
 
 
     #[cfg(not(feature = "qemu"))]
-    connection::init(peripherals.modem, sysloop.clone(), &store)?;
+    connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
 
 
     let _sntp = sntp::EspSntp::new_default()?;

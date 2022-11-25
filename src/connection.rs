@@ -1,4 +1,4 @@
-use std::thread;
+use std::{thread, sync::Arc};
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
@@ -28,10 +28,10 @@ pub struct Config {
 pub fn init(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
-    sstore: & DStore,
+    sstore: Arc<DStore>,
 ) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
-    thread::spawn(move || {
+    thread::spawn(move|| {
         info!("Initializing wifi...");
         let mut wifi = match Wlan::start(modem, sysloop) {
             Ok(w) => w,
@@ -43,7 +43,7 @@ pub fn init(
         };
 
         info!("Connecting to stored wifi...");
-        if let Ok(creds) = Creds::from_store(sstore) {
+        if let Ok(creds) = Creds::from_store(&sstore.clone()) {
             match wifi.connect_to(creds) {
                 Err(e) => warn!("Failed to connect to stored wifi: {}", e),
                 Ok(_) => info!("Connected to stored wifi"),
