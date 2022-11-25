@@ -23,7 +23,6 @@ use esp_idf_svc::netif::{EspNetif, EspNetifWait};
 use std::net::Ipv4Addr;
 
 use crate::connection::ping;
-use crate::store;
 
 // #[allow(dead_code)]
 // #[cfg(not(feature = "qemu"))]

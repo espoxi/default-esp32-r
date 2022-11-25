@@ -1,5 +1,6 @@
 use log::info;
 
+#[allow(dead_code)]
 pub fn test_https_client() -> anyhow::Result<()> {
     use embedded_svc::http::client::*;
     use embedded_svc::io::Read;

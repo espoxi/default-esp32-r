@@ -7,6 +7,8 @@ use std::{
 use anyhow::Result;
 use log::{error, info};
 
+
+#[allow(dead_code)]
 pub fn test_tcp() -> Result<()> {
     info!("About to open a TCP connection to 1.1.1.1 port 80");
 
@@ -33,6 +35,7 @@ pub fn test_tcp() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn test_tcp_bind() -> Result<()> {
     fn test_tcp_bind_accept() -> Result<()> {
         info!("About to bind a simple echo service to port 8080");

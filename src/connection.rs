@@ -17,7 +17,7 @@ use wifi::{Creds, Wlan};
 
 use crate::{
     connection::server as s,
-    store::{DStore, SelfStorable},
+    store::{DStore},
 };
 
 #[toml_cfg::toml_config]
