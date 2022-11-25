@@ -1,10 +1,13 @@
 
 
+use std::sync::mpsc::{Sender};
+
 use anyhow::{Result, bail};
 
 use embedded_svc::http::server::{Method, Request};
 use embedded_svc::io::{Write, Read};
 use esp_idf_svc::http::server::EspHttpConnection;
+use log::info;
 use serde::de;
 
 use super::wifi::Creds;
@@ -26,13 +29,26 @@ pub fn init_server(
     Ok(server)
 }
 
-pub fn add_connect_route(server: &mut esp_idf_svc::http::server::EspHttpServer) -> Result<()> {
+pub fn add_connect_route(server: &mut esp_idf_svc::http::server::EspHttpServer, tx : Sender<super::ConnectionEvent>) -> Result<()> {
     server
-        .fn_handler("/connect", Method::Post, |mut req| {
+        .fn_handler("/connect", Method::Post, move |mut req| {
             let mut buf = Vec::new();
             let creds: Creds = parse_req_json_to(&mut req, &mut buf)?;
-            //TODO: connect to wifi
-            println!("Got creds: {:?}", creds);
+            info!("Got creds: {:?}", creds);
+            tx.send(super::ConnectionEvent::ConnectToWifi(creds)).unwrap();
+            req.into_ok_response()?
+                .write_all(index_html().as_bytes())?;
+            Ok(())
+        })?;
+    Ok(())
+}
+pub fn add_rename_route(server: &mut esp_idf_svc::http::server::EspHttpServer, tx : Sender<super::ConnectionEvent>) -> Result<()> {
+    server
+        .fn_handler("/rename", Method::Post, move |mut req| {
+            let mut buf = Vec::new();
+            let creds: Creds = parse_req_json_to(&mut req, &mut buf)?;
+            info!("Got creds: {:?}", creds);
+            tx.send(super::ConnectionEvent::HostAs(creds)).unwrap();
             req.into_ok_response()?
                 .write_all(index_html().as_bytes())?;
             Ok(())

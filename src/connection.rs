@@ -2,7 +2,7 @@ use std::{thread, sync::Arc};
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
-use esp_idf_hal::peripheral;
+use esp_idf_hal::{peripheral, delay::FreeRtos};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, ping};
 use log::{info, warn};
 
@@ -13,7 +13,7 @@ pub mod wifi;
 use wifi::{Creds, Wlan};
 
 use crate::{
-    connection::server::add_connect_route,
+    connection::server as s,
     store::{DStore, SelfStorable},
 };
 
@@ -31,13 +31,13 @@ pub fn init(
     sstore: Arc<DStore>,
 ) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
-    thread::spawn(move|| {
+    thread::Builder::new().stack_size(6*1024).spawn(move|| {
         info!("Initializing wifi...");
         let mut wifi = match Wlan::start(modem, sysloop) {
             Ok(w) => w,
             Err(e) => {
                 warn!("Failed to start wifi: {}", e);
-                tx.send(Err(e));
+                let _ = tx.send(Err(e));
                 return;
             }
         };
@@ -64,17 +64,43 @@ pub fn init(
             Ok(s) => s,
             Err(e) => {
                 warn!("Failed to start http server: {}", e);
-                tx.send(Err(e));
+                let _ = tx.send(Err(e));
                 return;
             }
         };
 
-        add_connect_route(&mut server).unwrap();
-        tx.send(Ok(()));
-        loop {}
-    });
+        let (inner_tx, inner_rx) = std::sync::mpsc::channel::<ConnectionEvent>();
 
-    Ok(())
+        s::add_connect_route(&mut server, inner_tx.clone()).unwrap();
+        s::add_rename_route(&mut server, inner_tx.clone()).unwrap();
+        let _ = tx.send(Ok(()));
+        loop {
+            FreeRtos::delay_ms(100);
+            match inner_rx.recv(){
+                Ok(ConnectionEvent::ConnectToWifi(creds)) => {
+                    info!("Connecting to wifi...");
+                    match wifi.connect_to(creds) {
+                        Ok(_) => info!("Connected to wifi"),
+                        Err(e) => warn!("Failed to connect to wifi: {}", e),
+                    };
+                },
+                Ok(ConnectionEvent::HostAs(creds)) => {
+                    info!("Starting wifi as host...");
+                    match wifi.host_as(creds) {
+                        Ok(_) => info!("Wifi started as host"),
+                        Err(e) => warn!("Wifi hosting failed: {}", e),
+                    };
+                },
+                Err(_) => warn!("Connection event channel closed"),
+            }
+        }
+    })?;
+    rx.recv().unwrap()
+}
+
+pub enum ConnectionEvent {
+    ConnectToWifi(Creds),
+    HostAs(Creds),
 }
 
 pub fn ping(ip: ipv4::Ipv4Addr) -> Result<()> {
