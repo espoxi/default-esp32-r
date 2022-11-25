@@ -91,7 +91,7 @@ fn test_timer(eventloop: EspBackgroundEventLoop) -> Result<EspTimer> {
         eventloop.post(&EventLoopMessage::new(now), None).unwrap();
     })?;
 
-    periodic_timer.every(Duration::from_secs(5))?;
+    periodic_timer.every(Duration::from_secs(50))?;
 
     Ok(periodic_timer)
 }

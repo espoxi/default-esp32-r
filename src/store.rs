@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use anyhow::bail;
 use embedded_svc::storage::{SerDe, StorageImpl};
 use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition};
