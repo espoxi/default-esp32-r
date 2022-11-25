@@ -66,6 +66,7 @@ pub fn init(
                 Err(e) => warn!("Wifi hosting failed: {}", e),
             };
         }
+        drop(ssstore);
 
         info!("Initializing http server...");
         let mut server = match server::init_server() {
