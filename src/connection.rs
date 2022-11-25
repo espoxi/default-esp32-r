@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread};
+use std::{sync::{Arc, Mutex}, thread};
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
@@ -28,7 +28,7 @@ pub struct Config {
 pub fn init(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
-    sstore: Arc<DStore>,
+    sstore: Arc<Mutex<DStore>>,
 ) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     thread::Builder::new().stack_size(6 * 1024).spawn(move || {
@@ -42,15 +42,17 @@ pub fn init(
             }
         };
 
+        let ssstore = sstore.lock().unwrap();
+
         info!("Connecting to stored wifi...");
-        if let Ok(Some(creds)) = sstore.get("client_creds") {
+        if let Ok(Some(creds)) = ssstore.get("client_creds") {
             match wifi.connect_to(creds) {
                 Err(e) => warn!("Failed to connect to stored wifi: {}", e),
                 Ok(_) => info!("Connected to stored wifi"),
             };
         } else {
             info!("No stored wifi credentials, we will start our own access point");
-            match wifi.host_as(match sstore.get("ap_creds") {
+            match wifi.host_as(match ssstore.get("ap_creds") {
                 Ok(Some(creds)) => creds,
                 _ => Creds {
                     ssid: CONFIG.wifi_ssid.into(),
@@ -82,7 +84,8 @@ pub fn init(
             match inner_rx.recv() {
                 Ok(ConnectionEvent::ConnectToWifi(creds)) => {
                     info!("Connecting to wifi...");
-                    // sstore.set("client_creds", &creds).unwrap();
+                    let mut ssstore = sstore.lock().unwrap();
+                    ssstore.set("client_creds", &creds).unwrap();
                     match wifi.connect_to(creds) {
                         Ok(_) => info!("Connected to wifi"),
                         Err(e) => warn!("Failed to connect to wifi: {}", e),
@@ -90,8 +93,8 @@ pub fn init(
                 }
                 Ok(ConnectionEvent::HostAs(creds)) => {
                     info!("Starting wifi as host...");
-                    //TODO: i think we would need to put the Store into a mutex inside the arc
-                    // sstore.set("ap_creds", &creds).unwrap();
+                    let mut ssstore = sstore.lock().unwrap();
+                    ssstore.set("ap_creds", &creds).unwrap();
                     match wifi.host_as(creds) {
                         Ok(_) => info!("Wifi started as host"),
                         Err(e) => warn!("Wifi hosting failed: {}", e),

@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     let pins = peripherals.pins;
 
     let sysloop = EspSystemEventLoop::take()?;    
-    let store =  Arc::new(store::default());
+    let store =  Arc::new(Mutex::new(store::default()));
 
 
     #[cfg(not(feature = "qemu"))]
