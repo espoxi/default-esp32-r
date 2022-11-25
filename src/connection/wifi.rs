@@ -63,7 +63,7 @@ impl Wlan {
         let esp_wifi = EspWifi::wrap_all(
             WifiDriver::new(
                 modem,
-                EspSystemEventLoop::take().unwrap(), //XXX: if i need to use the sysloop i need to pass it here
+                sysloop,
                 None,
             )?,
             EspNetif::new_with_conf(&new_c)?,
