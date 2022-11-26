@@ -59,6 +59,13 @@ fn main() -> Result<()> {
 
     let _timer = test_timer(eventloop)?;
 
+    let nm = neopixel::NeopixelManager::new(
+        pins.gpio3,
+        peripherals.rmt.channel0,
+        60,
+    );
+    nm.run_rainbow()?;
+
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 
     loop {

@@ -1,6 +1,6 @@
 
 
-use std::time::Duration;
+use std::{time::Duration, sync::{Arc, Mutex}};
 
 use esp_idf_hal::{
     delay::Ets,
@@ -26,7 +26,7 @@ pub struct Strip<'d> {
     pub one_low_ns: u16,
     pub reset_ns: u16,
     pub led_count: u16,
-    rmt: TxRmtDriver<'d>,
+    rmt: Arc<Mutex<TxRmtDriver<'d>>>,
     pub led_color_order: LedColorOrder,
 }
 
@@ -37,7 +37,7 @@ impl<'d> Strip<'d> {
         pixel_count: u16,
     ) -> Self {
         let config = TransmitConfig::new().clock_divider(1);
-        let tx = TxRmtDriver::new(rmt_channel, pin, &config).unwrap();
+        let tx = Arc::new(Mutex::new(TxRmtDriver::new(rmt_channel, pin, &config).unwrap()));
         Self {
             zero_high_ns: 400,
             zero_low_ns: 850,
@@ -49,12 +49,13 @@ impl<'d> Strip<'d> {
             led_color_order: LedColorOrder::GRB,
         }
     }
-    pub fn send_colors(&mut self, colors: &[color::Color])-> Result<()> {
-        let ticks_hz = self.rmt.counter_clock()?;
+    pub fn send_colors(&self, colors: &[color::Color])-> Result<()> {
+        let ticks_hz = self.rmt.lock().unwrap().counter_clock()?;
         let t0h = Pulse::new_with_duration(ticks_hz, PinState::High, &ns(self.zero_high_ns))?;
         let t0l = Pulse::new_with_duration(ticks_hz, PinState::Low, &ns(self.zero_low_ns))?;
         let t1h = Pulse::new_with_duration(ticks_hz, PinState::High, &ns(self.one_high_ns))?;
         let t1l = Pulse::new_with_duration(ticks_hz, PinState::Low, &ns(self.one_low_ns))?;
+        drop(ticks_hz);
 
         let mut signal = VariableLengthSignal::with_capacity(24*colors.len());
         for color in colors {
@@ -66,7 +67,7 @@ impl<'d> Strip<'d> {
                 if bit {[&t1h, &t1l]}  else {[&t0h, &t0l]}
             }).flatten())?;
         }
-        self.rmt.start(signal)?;
+        self.rmt.clone().lock().unwrap().start(signal)?;
         Ets::delay_us((self.reset_ns / 1000) as u32);
         Ok(())
     }
