@@ -37,7 +37,7 @@ impl<'d> Strip<'d> {
         pixel_count: u16,
     ) -> Self {
         let config = TransmitConfig::new().clock_divider(1);
-        let mut tx = TxRmtDriver::new(rmt_channel, pin, &config).unwrap();
+        let tx = TxRmtDriver::new(rmt_channel, pin, &config).unwrap();
         Self {
             zero_high_ns: 400,
             zero_low_ns: 850,
@@ -63,8 +63,8 @@ impl<'d> Strip<'d> {
             //     signal.push(&(high_pulse, low_pulse))?;
             // }
             signal.push(color.to_bit_iter(&self.led_color_order).map(|bit|{
-                if bit {&[t1h, t1l]}  else {&[t0h, t0l]}//FIXME
-            }).flatten());
+                if bit {[&t1h, &t1l]}  else {[&t0h, &t0l]}
+            }).flatten())?;
         }
         self.rmt.start(signal)?;
         Ets::delay_us((self.reset_ns / 1000) as u32);
