@@ -113,7 +113,7 @@ impl Color {
     /// hue: i16, -360 to 360
     pub fn shift_hue(&self, hue: i16) -> Self {
         let hsv = self.to_hsv();
-        let mut new_hue = hsv.hue as i16 + (hue*255/360);
+        let mut new_hue = hsv.hue as i16 + (hue as i16 *17/24); //255/360
         if new_hue < 0 {
             new_hue += 256;
         } else if new_hue > 255 {
@@ -126,7 +126,7 @@ impl Color {
     /// saturation: i8, -100 to 100
     pub fn shift_saturation(&self, percent: i8) -> Self {
         let hsv = self.to_hsv();
-        let mut new_saturation = hsv.saturation as i16 + (percent as i16 * 255 / 100);
+        let mut new_saturation = hsv.saturation as i16 + (percent as i16 * 51/20); //255/100
         if new_saturation < 0 {
             new_saturation = 0;
         } else if new_saturation > 255 {
@@ -139,7 +139,7 @@ impl Color {
     /// value: i16, -100 to 100
     pub fn shift_value(&self, percent: i8) -> Self {
         let hsv = self.to_hsv();
-        let mut new_value = hsv.value as i16 + (percent as i16 * 255 / 100);
+        let mut new_value = hsv.value as i16 + (percent as i16  * 51/20); //255/100
         if new_value < 0 {
             new_value = 0;
         } else if new_value > 255 {
