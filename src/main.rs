@@ -28,6 +28,8 @@ use esp_idf_hal::prelude::*;
 
 use esp_idf_sys::{self, c_types};
 
+use crate::strip::color::Color;
+
 // static store:store::DStore = store::default();
 
 fn main() -> Result<()> {
@@ -52,7 +54,8 @@ fn main() -> Result<()> {
     #[cfg(not(feature = "qemu"))]
     connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
 
-    let neopixelz = strip::StripConfig::ws2812b(pins.gpio3, 30);
+    let mut neopixelz = strip::Strip::ws2812b(pins.gpio3, peripherals.rmt.channel0, 60);
+    neopixelz.send_colors(&[Color::gold(),Color::silver()])?;
 
     let _sntp = sntp::EspSntp::new_default()?;
     info!("SNTP initialized");

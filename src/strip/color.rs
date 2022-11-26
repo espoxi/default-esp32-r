@@ -1,7 +1,9 @@
-use std::{ops, cmp::{max, min}};
+use std::{
+    cmp::{max, min},
+    ops,
+};
 
 use super::LedColorOrder;
-
 
 pub struct Color {
     pub red: u8,
@@ -75,14 +77,6 @@ impl Color {
         Self::new(255, 215, 0)
     }
 
-    /// Returns the color as a 24-bit RGB value.
-    pub fn rgb(&self, order: LedColorOrder) -> u32 {
-        match order {
-            LedColorOrder::RGB => ((self.red as u32) << 16) | ((self.green as u32) << 8) | self.blue as u32,
-            LedColorOrder::GRB => ((self.green as u32) << 16) | ((self.red as u32) << 8) | self.blue as u32,
-        }
-    }
-
     /// convert to HSV without using floating point math
     fn to_hsv(&self) -> Hsv {
         let r = self.red as u16;
@@ -105,11 +99,7 @@ impl Color {
 
         let value = max;
 
-        let saturation = if max == 0 {
-            0
-        } else {
-            255 * delta / max
-        };
+        let saturation = if max == 0 { 0 } else { 255 * delta / max };
 
         Hsv {
             hue: hue as u8,
@@ -157,8 +147,47 @@ impl Color {
         Hsv::new(hsv.hue, hsv.saturation, new_value as u8).to_rgb()
     }
 
+    /// Returns the color as a 24-bit RGB value.
+    pub fn rgb(&self, order: &LedColorOrder) -> u32 {
+        match order {
+            LedColorOrder::RGB => {
+                ((self.red as u32) << 16) | ((self.green as u32) << 8) | self.blue as u32
+            }
+            LedColorOrder::GRB => {
+                ((self.green as u32) << 16) | ((self.red as u32) << 8) | self.blue as u32
+            }
+        }
+    }
 
-    
+    pub fn to_bit_iter(&self, order: &LedColorOrder) -> impl Iterator<Item = bool> + '_ {
+        ColorBitString::new(self.rgb(order))
+    }
+}
+
+struct ColorBitString {
+    color_u32: u32,
+    current_bit_pos: u8,
+}
+impl ColorBitString {
+    fn new(color_u32: u32) -> Self {
+        let current_bit_pos = 24;
+        Self {
+            color_u32,
+            current_bit_pos,
+        }
+    }
+}
+
+impl Iterator for ColorBitString {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_bit_pos == 0 {
+            return None;
+        }
+        self.current_bit_pos -= 1;
+        let bit = (self.color_u32 >> self.current_bit_pos) == 1;
+        Some(bit)
+    }
 }
 
 ///HSV color space values range from 0 to 255
@@ -170,7 +199,11 @@ struct Hsv {
 
 impl Hsv {
     fn new(hue: u8, saturation: u8, value: u8) -> Self {
-        Self { hue, saturation, value }
+        Self {
+            hue,
+            saturation,
+            value,
+        }
     }
     pub fn to_rgb(&self) -> Color {
         let h = self.hue as f32 / 255.0;
@@ -197,8 +230,6 @@ impl Hsv {
         }
     }
 }
-
-
 
 impl ops::Add<Color> for Color {
     type Output = Color;
@@ -247,4 +278,3 @@ impl ops::Mul<f32> for Color {
         }
     }
 }
-
