@@ -54,9 +54,6 @@ fn main() -> Result<()> {
     #[cfg(not(feature = "qemu"))]
     connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
 
-    let mut neopixelz = strip::Strip::ws2812b(pins.gpio3, peripherals.rmt.channel0, 60);
-    neopixelz.send_colors(&[Color::gold(),Color::silver()])?;
-
     let _sntp = sntp::EspSntp::new_default()?;
     info!("SNTP initialized");
 
@@ -65,6 +62,16 @@ fn main() -> Result<()> {
     let _timer = test_timer(eventloop)?;
 
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
+
+    const PIXELCOUNT: u16 = 60;
+    let mut neopixelz = strip::Strip::ws2812b(pins.gpio3, peripherals.rmt.channel0, 60);
+    
+    let rainbow_buf = [Color::green(); PIXELCOUNT as usize];
+    for i in 0..PIXELCOUNT {
+        (rainbow_buf[i as usize]).shift_hue((i*360/PIXELCOUNT) as i16);
+    }
+    neopixelz.send_colors(&rainbow_buf)?;
+    
     loop {
         builtin_led.set_high().unwrap();
         FreeRtos::delay_ms(500);

@@ -5,6 +5,7 @@ use std::{
 
 use super::LedColorOrder;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Color {
     pub red: u8,
     pub green: u8,
@@ -109,10 +110,10 @@ impl Color {
     }
 
     /// shift hue
-    /// hue: i16, -255 to 255
+    /// hue: i16, -360 to 360
     pub fn shift_hue(&self, hue: i16) -> Self {
         let hsv = self.to_hsv();
-        let mut new_hue = hsv.hue as i16 + hue;
+        let mut new_hue = hsv.hue as i16 + (hue*255/360);
         if new_hue < 0 {
             new_hue += 256;
         } else if new_hue > 255 {
@@ -122,10 +123,10 @@ impl Color {
     }
 
     /// shift saturation
-    /// saturation: i16, -255 to 255
-    pub fn shift_saturation(&self, saturation: i16) -> Self {
+    /// saturation: i8, -100 to 100
+    pub fn shift_saturation(&self, percent: i8) -> Self {
         let hsv = self.to_hsv();
-        let mut new_saturation = hsv.saturation as i16 + saturation;
+        let mut new_saturation = hsv.saturation as i16 + (percent as i16 * 255 / 100);
         if new_saturation < 0 {
             new_saturation = 0;
         } else if new_saturation > 255 {
@@ -135,10 +136,10 @@ impl Color {
     }
 
     /// shift value
-    /// value: i16, -255 to 255
-    pub fn shift_value(&self, value: i16) -> Self {
+    /// value: i16, -100 to 100
+    pub fn shift_value(&self, percent: i8) -> Self {
         let hsv = self.to_hsv();
-        let mut new_value = hsv.value as i16 + value;
+        let mut new_value = hsv.value as i16 + (percent as i16 * 255 / 100);
         if new_value < 0 {
             new_value = 0;
         } else if new_value > 255 {
