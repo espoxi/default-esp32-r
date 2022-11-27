@@ -1,6 +1,4 @@
-use std::{
-    ops,
-};
+use std::ops::{self};
 
 #[allow(unused_macros)]
 macro_rules! min {
@@ -159,8 +157,10 @@ impl Color {
     /// hue: f32, range from 0 to 360
     pub fn shift_hue_deg(&mut self, hue: f32) -> &Self {
         let mut hsv = self.to_hsv();
-        hsv.hue = (hsv.hue + hue) % 360f32;
+        print!("rgb: {:?}, \t hsv: {:?}", self, hsv);
+        hsv.hue += hue;
         *self = hsv.to_rgb();
+        println!("\t-(hue+{})--> rgb: {:?}, \t hsv: {:?}", hue, self, hsv);
         self
     }
 
@@ -184,14 +184,12 @@ impl Color {
 
     /// Returns the color as a 24-bit RGB value.
     pub fn to_u32(&self, order: &LedColorOrder) -> u32 {
-        match order {
-            LedColorOrder::RGB => {
-                ((self.red as u32) << 16) | ((self.green as u32) << 8) | self.blue as u32
-            }
-            LedColorOrder::GRB => {
-                ((self.green as u32) << 16) | ((self.red as u32) << 8) | self.blue as u32
-            }
-        }
+        let (r, g, b) = match order {
+            LedColorOrder::RGB => (self.red, self.green, self.blue),
+            LedColorOrder::GRB => (self.green, self.red, self.blue),
+        };
+
+        (((r * 255.0) as u32) << 16) | (((g * 255.0) as u32) << 8) | (b * 255.0) as u32
     }
 
     pub fn to_bit_iter(&self, order: &LedColorOrder) -> impl Iterator<Item = bool> + '_ {
@@ -258,7 +256,7 @@ impl Hsv {
         let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
         let m = v - c;
 
-        let (r, g, b) = match h {
+        let (r, g, b) = match h % 360.0 {
             h if h < 60.0 => (c, x, 0.0),
             h if h < 120.0 => (x, c, 0.0),
             h if h < 180.0 => (0.0, c, x),
@@ -300,9 +298,9 @@ impl ops::Mul<Color> for Color {
 
     fn mul(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red * _rhs.red) % 1.0,
-            green: (self.green * _rhs.green) % 1.0,
-            blue: (self.blue * _rhs.blue) % 1.0,
+            red: (self.red * _rhs.red).max(0.0).min(1.0),
+            green: (self.green * _rhs.green).max(0.0).min(1.0),
+            blue: (self.blue * _rhs.blue).max(0.0).min(1.0),
         }
     }
 }
@@ -312,9 +310,17 @@ impl ops::Mul<f32> for Color {
 
     fn mul(self, _rhs: f32) -> Color {
         Color {
-            red: (self.red * _rhs) % 1.0,
-            green: (self.green * _rhs) % 1.0,
-            blue: (self.blue * _rhs) % 1.0,
+            red: (self.red * _rhs).max(0.0).min(1.0),
+            green: (self.green * _rhs).max(0.0).min(1.0),
+            blue: (self.blue * _rhs).max(0.0).min(1.0),
         }
     }
 }
+
+// impl<T> ops::Mul<T> for (T, T, T) {
+//     type Output = T;
+
+//     fn mul(self, other: T) -> Self {
+//         (self.0 * other, self.1 * other, self.2 * other)
+//     }
+// }
