@@ -4,8 +4,8 @@
 
 mod connection;
 mod demos;
-mod store;
 mod neopixel;
+mod store;
 
 #[allow(unused_imports)]
 use std::sync::{Condvar, Mutex};
@@ -59,12 +59,13 @@ fn main() -> Result<()> {
 
     let _timer = test_timer(eventloop)?;
 
-    let nm = neopixel::NeopixelManager::new(
-        pins.gpio3,
-        peripherals.rmt.channel0,
-        60,
-    );
-    nm.run_rainbow()?;
+    let nm = neopixel::NeopixelManager::new(neopixel::strip::Strip::ws2812b(//XXX: 2812(b?)
+        pins.gpio14,
+        peripherals.rmt.channel1,
+        30,
+    ));
+    nm.set_rainbow()?;
+    nm.run();
 
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 

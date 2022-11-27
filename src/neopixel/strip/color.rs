@@ -3,6 +3,15 @@ use std::{
     ops,
 };
 
+macro_rules! min {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => (::std::cmp::min($x, min!($($z),*)));
+}
+macro_rules! max {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => (::std::cmp::min($x, max!($($z),*)));
+}
+
 use super::LedColorOrder;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -78,48 +87,46 @@ impl Color {
         Self::new(255, 215, 0)
     }
 
-    /// convert to HSV without using floating point math
+    /// convert to HSV
     fn to_hsv(&self) -> Hsv {
-        let r = self.red as u16;
-        let g = self.green as u16;
-        let b = self.blue as u16;
+        let r = self.red;
+        let g = self.green;
+        let b = self.blue;
 
-        let max = max(r, max(g, b));
-        let min = min(r, min(g, b));
-        let delta = max - min;
+        let max = max!(r, g, b);
+        let min = min!(r, g, b);
+        let delta = (max - min) as f32;
 
-        let hue = if delta == 0 {
+        let hue = if delta <= 1f32 {
             0
         } else if max == r {
-            60 * ((g - b) / delta)
+            (35f32 * ((g - b)as f32 / delta)) as u8
         } else if max == g {
-            60 * (2 + (b - r) / delta)
+            (35f32 * ((b - r)as f32 / delta)) as u8
         } else {
-            60 * (4 + (r - g) / delta)
+            (35f32 * ((r - g)as f32 / delta)) as u8
         };
 
         let value = max;
 
-        let saturation = if max == 0 { 0 } else { 255 * delta / max };
+        let saturation = if max == 0 { 0 } else { 255u16 * delta as u16 / max as u16 } as u8;
 
         Hsv {
-            hue: hue as u8,
-            saturation: saturation as u8,
-            value: value as u8,
+            hue: hue,
+            saturation: saturation,
+            value: value,
         }
     }
 
     /// shift hue
     /// hue: i16, -360 to 360
-    pub fn shift_hue(&self, hue: i16) -> Self {
+    pub fn shift_hue(mut self, hue: i16) -> Self {
         let hsv = self.to_hsv();
-        let mut new_hue = hsv.hue as i16 + (hue as i16 *17/24); //255/360
-        if new_hue < 0 {
-            new_hue += 256;
-        } else if new_hue > 255 {
-            new_hue -= 256;
-        }
-        Hsv::new(new_hue as u8, hsv.saturation, hsv.value).to_rgb()
+        let new_hue = hsv.hue as i16 + (hue as i16 *17/24); //255/360
+        let new = Hsv::new((new_hue%255) as u8, hsv.saturation, hsv.value).to_rgb();
+        // println!("{:?} --({}->{})-> {:?}",self, hue, new_hue%255, new);
+        self = new;
+        self
     }
 
     /// shift saturation
@@ -192,6 +199,7 @@ impl Iterator for ColorBitString {
 }
 
 ///HSV color space values range from 0 to 255
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct Hsv {
     hue: u8,
     saturation: u8,
@@ -207,7 +215,7 @@ impl Hsv {
         }
     }
     pub fn to_rgb(&self) -> Color {
-        let h = self.hue as f32 / 255.0;
+        let h = self.hue as f32 / 255.0 * 360.0;
         let s = self.saturation as f32 / 255.0;
         let v = self.value as f32 / 255.0;
 
