@@ -198,7 +198,7 @@ impl Iterator for ColorBitString {
             return None;
         }
         self.current_bit_pos -= 1;
-        let bit = (self.color_u32 >> self.current_bit_pos) == 1;
+        let bit = (self.color_u32 >> self.current_bit_pos)&1 == 1;
         Some(bit)
     }
 }

@@ -35,7 +35,7 @@ impl NeopixelManager<'static> {
                     (colors[i as usize]).shift_hue(10);
                 }
                 drop(colors);
-                thread::sleep(Duration::from_millis(20));
+                thread::sleep(Duration::from_millis(100));
             }
         });
         Ok(())
@@ -47,7 +47,7 @@ impl NeopixelManager<'static> {
         thread::spawn(move|| {
             loop {
                 sstrip.send_colors(&ccolors.lock().unwrap()).unwrap();
-                thread::sleep(Duration::from_millis(20));
+                thread::sleep(Duration::from_millis(100));
             }
         });
         self
