@@ -5,10 +5,9 @@ use crate::neopixel::strip::color::Color;
 use super::Effect;
 
 
-pub struct SolidColorEffect {
-    pub config: SolidColorConfig,
-}
+pub struct SolidColorEffect;
 
+#[derive(Debug)]
 pub struct SolidColorConfig {
     pub color: Color,
 }
@@ -23,13 +22,10 @@ impl Default for SolidColorConfig {
 
 impl Effect for SolidColorEffect {
     type Config = SolidColorConfig;
-    fn new(config: Self::Config) -> Self {
-        Self { config }
-    }
-    fn apply(&self, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config,  colors: &mut Vec<Color>, _:Duration) -> anyhow::Result<()> {
         let size = colors.len();
         for i in 0..size {
-            (colors[i as usize]) = self.config.color;
+            (colors[i as usize]) = config.color;
         }
         Ok(())
     }

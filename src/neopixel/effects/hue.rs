@@ -5,10 +5,9 @@ use crate::neopixel::strip::color::Color;
 use super::Effect;
 
 
-pub struct HueShiftEffect {
-    pub config: HueShiftConfig,
-}
+pub struct HueShiftEffect;
 
+#[derive(Debug)]
 pub struct HueShiftConfig {
     pub degrees_per_second: f32,
     pub degrees_per_led: f32,
@@ -25,13 +24,10 @@ impl Default for HueShiftConfig {
 
 impl Effect for HueShiftEffect {
     type Config = HueShiftConfig;
-    fn new(config: Self::Config) -> Self {
-        Self { config }
-    }
-    fn apply(&self, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()> {
         let size = colors.len();
         for i in 0..size {
-            (colors[i as usize]).shift_hue_deg(self.config.degrees_per_second * t.as_secs_f32() + self.config.degrees_per_led * i as f32);
+            (colors[i as usize]).shift_hue_deg(config.degrees_per_second * t.as_secs_f32() + config.degrees_per_led * i as f32);
         }
         Ok(())
     }

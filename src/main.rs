@@ -59,13 +59,24 @@ fn main() -> Result<()> {
 
     let _timer = test_timer(eventloop)?;
 
+    let pixel_count = 30;
     let nm = neopixel::NeopixelManager::new(neopixel::strip::Strip::ws2812b(//XXX: 2812(b?)
         pins.gpio14,
         peripherals.rmt.channel1,
-        100,
+        pixel_count,
     ));
-    nm.set_rainbow()?;
     nm.run();
+    nm.effects.lock().unwrap().push(neopixel::effects::EffectConfig::SolidColor(
+        neopixel::effects::solid::SolidColorConfig {
+            color: neopixel::strip::color::Color::red(),
+        },
+    ));
+    nm.effects.lock().unwrap().push(neopixel::effects::EffectConfig::HueShift(
+        neopixel::effects::hue::HueShiftConfig {
+            degrees_per_led: pixel_count as f32 / 360.0,
+            degrees_per_second: 10.0,
+        },
+    ));
 
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 
