@@ -9,7 +9,7 @@ macro_rules! min {
 }
 macro_rules! max {
     ($x: expr) => ($x);
-    ($x: expr, $($z: expr),+) => (::std::cmp::min($x, max!($($z),*)));
+    ($x: expr, $($z: expr),+) => (::std::cmp::max($x, max!($($z),*)));
 }
 
 use super::LedColorOrder;
@@ -89,9 +89,9 @@ impl Color {
 
     /// convert to HSV
     fn to_hsv(&self) -> Hsv {
-        let r = self.red;
-        let g = self.green;
-        let b = self.blue;
+        let r = self.red as i16;
+        let g = self.green as i16;
+        let b = self.blue as i16;
 
         let max = max!(r, g, b);
         let min = min!(r, g, b);
@@ -100,14 +100,14 @@ impl Color {
         let hue = if delta <= 1f32 {
             0
         } else if max == r {
-            (35f32 * ((g - b)as f32 / delta)) as u8
+            (42.5f32 * ((g - b)as f32 / delta)%255f32) as u8
         } else if max == g {
-            (35f32 * ((b - r)as f32 / delta)) as u8
+            (42.5f32 * ((b - r)as f32 / delta)) as u8 + 85
         } else {
-            (35f32 * ((r - g)as f32 / delta)) as u8
+            (42.5f32 * ((r - g)as f32 / delta)) as u8 + 170
         };
 
-        let value = max;
+        let value = max as u8;
 
         let saturation = if max == 0 { 0 } else { 255u16 * delta as u16 / max as u16 } as u8;
 
@@ -120,18 +120,19 @@ impl Color {
 
     /// shift hue
     /// hue: i16, -360 to 360
-    pub fn shift_hue(mut self, hue: i16) -> Self {
+    pub fn shift_hue(&mut self, hue: i16) -> &Self {
         let hsv = self.to_hsv();
-        let new_hue = hsv.hue as i16 + (hue as i16 *17/24); //255/360
-        let new = Hsv::new((new_hue%255) as u8, hsv.saturation, hsv.value).to_rgb();
-        // println!("{:?} --({}->{})-> {:?}",self, hue, new_hue%255, new);
-        self = new;
+        let new_hue = hsv.hue as i16 + (hue as i16) *17/24; //255/360
+        let new_hsv = Hsv::new((new_hue%255) as u8, hsv.saturation, hsv.value);
+        let new = new_hsv.to_rgb();
+        println!("{:?}[{:?}] --({}->{})-> [{:?}]{:?}",self, hsv, hue, new_hue%255, new_hsv, new);
+        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
         self
     }
 
     /// shift saturation
     /// saturation: i8, -100 to 100
-    pub fn shift_saturation(&self, percent: i8) -> Self {
+    pub fn shift_saturation(&mut self, percent: i8) -> &Self {
         let hsv = self.to_hsv();
         let mut new_saturation = hsv.saturation as i16 + (percent as i16 * 51/20); //255/100
         if new_saturation < 0 {
@@ -139,12 +140,14 @@ impl Color {
         } else if new_saturation > 255 {
             new_saturation = 255;
         }
-        Hsv::new(hsv.hue, new_saturation as u8, hsv.value).to_rgb()
+        let new = Hsv::new(hsv.hue, new_saturation as u8, hsv.value).to_rgb();
+        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
+        self
     }
 
     /// shift value
     /// value: i16, -100 to 100
-    pub fn shift_value(&self, percent: i8) -> Self {
+    pub fn shift_value(&mut self, percent: i8) -> &Self {
         let hsv = self.to_hsv();
         let mut new_value = hsv.value as i16 + (percent as i16  * 51/20); //255/100
         if new_value < 0 {
@@ -152,7 +155,9 @@ impl Color {
         } else if new_value > 255 {
             new_value = 255;
         }
-        Hsv::new(hsv.hue, hsv.saturation, new_value as u8).to_rgb()
+        let new = Hsv::new(hsv.hue, hsv.saturation, new_value as u8).to_rgb();
+        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
+        self
     }
 
     /// Returns the color as a 24-bit RGB value.
