@@ -135,12 +135,13 @@ impl Color {
         let hue = if delta == 0.0 {
             0.0
         } else if max == r {
-            60.0 * ((g - b) / delta) % 360f32
+            60.0 * ((g - b) / delta)
         } else if max == g {
             60.0 * ((b - r) / delta) + 120f32
         } else {
             60.0 * ((r - g) / delta) + 240f32
-        };
+        }
+        .rem_euclid(360f32);
 
         let value = max;
 
@@ -157,8 +158,10 @@ impl Color {
     /// hue: f32, range from 0 to 360
     pub fn shift_hue_deg(&mut self, hue: f32) -> &Self {
         let mut hsv = self.to_hsv();
+        // print!("rgb: {:?}, \t hsv: {:?}", self, hsv);
         hsv.hue += hue;
         *self = hsv.to_rgb();
+        // println!("\t-(hue+{})--> rgb: {:?}, \t hsv: {:?}", hue, self, hsv);
         self
     }
 
@@ -246,12 +249,12 @@ impl Hsv {
         }
     }
     pub fn to_rgb(&self) -> Color {
-        let h = self.hue % 360.0;
-        let s = self.saturation;
-        let v = self.value;
+        let h = self.hue.rem_euclid(360.0);
+        let s = self.saturation.min(1.0).max(0.0);
+        let v = self.value.min(1.0).max(0.0);
 
         let c = v * s;
-        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+        let x = c * (1.0 - ((h / 60.0).rem_euclid(2.0) - 1.0).abs());
         let m = v - c;
 
         let (r, g, b) = match h {
@@ -272,9 +275,9 @@ impl ops::Add<Color> for Color {
 
     fn add(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red + _rhs.red) % 1.0,
-            green: (self.green + _rhs.green) % 1.0,
-            blue: (self.blue + _rhs.blue) % 1.0,
+            red: (self.red + _rhs.red).rem_euclid(1.0),
+            green: (self.green + _rhs.green).rem_euclid(1.0),
+            blue: (self.blue + _rhs.blue).rem_euclid(1.0),
         }
     }
 }
@@ -284,9 +287,9 @@ impl ops::Sub<Color> for Color {
 
     fn sub(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red - _rhs.red) % 1.0,
-            green: (self.green - _rhs.green) % 1.0,
-            blue: (self.blue - _rhs.blue) % 1.0,
+            red: (self.red - _rhs.red).rem_euclid(1.0),
+            green: (self.green - _rhs.green).rem_euclid(1.0),
+            blue: (self.blue - _rhs.blue).rem_euclid(1.0),
         }
     }
 }
