@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use serde::{Serialize, Deserialize};
+
 use crate::neopixel::strip::color::Color;
 
 use super::Effect;
@@ -7,7 +9,7 @@ use super::Effect;
 
 pub struct HueShiftEffect;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HueShiftConfig {
     pub degrees_per_second: f32,
     pub degrees_per_led: f32,

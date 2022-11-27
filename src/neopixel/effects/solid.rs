@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use serde::{Serialize, Deserialize};
+
 use crate::neopixel::strip::color::Color;
 
 use super::Effect;
@@ -7,7 +9,7 @@ use super::Effect;
 
 pub struct SolidColorEffect;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SolidColorConfig {
     pub color: Color,
 }

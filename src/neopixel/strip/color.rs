@@ -21,9 +21,11 @@ macro_rules! fmax {
     ($x: expr, $($z: expr),+) => ($x.max(fmax!($($z),*)));
 }
 
+use serde::{Serialize, Deserialize};
+
 use super::LedColorOrder;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Color {
     pub red: f32,
     pub green: f32,

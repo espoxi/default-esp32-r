@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use serde::{Serialize, Deserialize};
+
 use crate::neopixel::strip::color::Color;
 
 use super::{Effect, solid::{SolidColorEffect, SolidColorConfig}};
@@ -7,7 +9,7 @@ use super::{Effect, solid::{SolidColorEffect, SolidColorConfig}};
 
 pub struct StroboEffect;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StroboConfig {
     pub frequency_hz: f32,
 }
