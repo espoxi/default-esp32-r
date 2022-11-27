@@ -26,6 +26,7 @@ use esp_idf_svc::eventloop::*;
 // use esp_idf_svc::timer::*;
 
 use esp_idf_hal::prelude::*;
+use neopixel::effects::EffectConfig;
 
 // use esp_idf_sys::{self, c_types};
 
@@ -57,6 +58,10 @@ fn main() -> Result<()> {
         pixel_count,
     ));
     nm.run(20);
+
+    if let Ok(Some(ref mut stored_effects)) = store.lock().unwrap().get::<Vec<EffectConfig>>("effects"){
+        nm.effects.lock().unwrap().append(stored_effects);
+    }
 
     connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
 

@@ -1,12 +1,12 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{mpsc::Sender, Arc, Mutex},
     thread,
 };
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
-use esp_idf_hal::{delay::FreeRtos, peripheral};
-use esp_idf_svc::{eventloop::EspSystemEventLoop, ping};
+use esp_idf_hal::{peripheral};
+use esp_idf_svc::{eventloop::EspSystemEventLoop,  ping};
 use log::{info, warn};
 
 pub mod client;
@@ -15,10 +15,9 @@ pub mod wifi;
 
 use wifi::{Creds, Wlan};
 
-use crate::{
-    connection::server as s,
-    store::{DStore},
-};
+use crate::{connection::server as s, store::DStore};
+
+use server::RouteData;
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -28,19 +27,26 @@ pub struct Config {
     wifi_psk: &'static str,
 }
 
+pub(self) enum ConnectionRelevantEvent {
+    Wifi(ConnectionEvent),
+    Route(RouteData),
+}
+
 pub fn init(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
     sstore: Arc<Mutex<DStore>>,
-) -> Result<()> {
-    let (tx, rx) = std::sync::mpsc::channel();
+) -> Result<Sender<RouteData>> {
+    let (succesful_wifi_connection_tx, succesful_wifi_connection_rx) = std::sync::mpsc::channel();
+    let (add_new_route_tx, add_new_route_rx) = std::sync::mpsc::channel::<RouteData>();
     thread::Builder::new().stack_size(6 * 1024).spawn(move || {
+
         info!("Initializing wifi...");
         let mut wifi = match Wlan::start(modem, sysloop) {
             Ok(w) => w,
             Err(e) => {
                 warn!("Failed to start wifi: {}", e);
-                let _ = tx.send(Err(e));
+                let _ = succesful_wifi_connection_tx.send(Err(e));
                 return;
             }
         };
@@ -73,42 +79,55 @@ pub fn init(
             Ok(s) => s,
             Err(e) => {
                 warn!("Failed to start http server: {}", e);
-                let _ = tx.send(Err(e));
+                let _ = succesful_wifi_connection_tx.send(Err(e));
                 return;
             }
         };
 
-        let (inner_tx, inner_rx) = std::sync::mpsc::channel::<ConnectionEvent>();
+        let (inner_tx, inner_rx) = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
 
         s::add_connect_route(&mut server, inner_tx.clone()).unwrap();
         s::add_rename_route(&mut server, inner_tx.clone()).unwrap();
-        let _ = tx.send(Ok(()));
+        let _ = succesful_wifi_connection_tx.send(Ok(()));
         loop {
-            FreeRtos::delay_ms(100);
+            // FreeRtos::delay_ms(100); //not needed since we are blocking on the rx (no busy waiting, and therefore no polling delay needed)
             match inner_rx.recv() {
-                Ok(ConnectionEvent::ConnectToWifi(creds)) => {
-                    info!("Connecting to wifi...");
-                    let mut ssstore = sstore.lock().unwrap();
-                    ssstore.set("client_creds", &creds).unwrap();
-                    match wifi.connect_to(creds) {
-                        Ok(_) => info!("Connected to wifi"),
-                        Err(e) => warn!("Failed to connect to wifi: {}", e),
+                Ok(ConnectionRelevantEvent::Wifi(event)) => match event {
+                    ConnectionEvent::ConnectToWifi(creds) => {
+                        info!("Connecting to wifi...");
+                        let mut ssstore = sstore.lock().unwrap();
+                        ssstore.set("client_creds", &creds).unwrap();
+                        match wifi.connect_to(creds) {
+                            Ok(_) => info!("Connected to wifi"),
+                            Err(e) => warn!("Failed to connect to wifi: {}", e),
+                        };
+                    }
+                    ConnectionEvent::HostAs(creds) => {
+                        info!("Starting wifi as host...");
+                        let mut ssstore = sstore.lock().unwrap();
+                        ssstore.set("ap_creds", &creds).unwrap();
+                        match wifi.host_as(creds) {
+                            Ok(_) => info!("Wifi started as host"),
+                            Err(e) => warn!("Wifi hosting failed: {}", e),
+                        };
+                    }
+                },
+                Ok(ConnectionRelevantEvent::Route(route_data)) => {
+                    info!("Adding new route...");
+                    match s::add_new_route(&mut server, route_data) {
+                        Ok(_) => info!("Added new route"),
+                        Err(e) => warn!("Failed to add new route: {}", e),
                     };
                 }
-                Ok(ConnectionEvent::HostAs(creds)) => {
-                    info!("Starting wifi as host...");
-                    let mut ssstore = sstore.lock().unwrap();
-                    ssstore.set("ap_creds", &creds).unwrap();
-                    match wifi.host_as(creds) {
-                        Ok(_) => info!("Wifi started as host"),
-                        Err(e) => warn!("Wifi hosting failed: {}", e),
-                    };
+                Err(_) => {
+                    warn!("Route data channel closed");
+                    break;
                 }
-                Err(_) => warn!("Connection event channel closed"),
             }
         }
     })?;
-    rx.recv().unwrap()
+    succesful_wifi_connection_rx.recv()??;
+    Ok(add_new_route_tx)
 }
 
 pub enum ConnectionEvent {

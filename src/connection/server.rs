@@ -28,17 +28,19 @@ pub fn init_server() -> Result<esp_idf_svc::http::server::EspHttpServer> {
     Ok(server)
 }
 
+use super::{ConnectionEvent::{ConnectToWifi,HostAs},ConnectionRelevantEvent::Wifi as WE};
+
 const BODY_BUFFER_SIZE: u16 = 1024;
-pub fn add_connect_route(
+pub(super) fn add_connect_route(
     server: &mut esp_idf_svc::http::server::EspHttpServer,
-    tx: Sender<super::ConnectionEvent>,
+    tx: Sender<super::ConnectionRelevantEvent>,
 ) -> Result<()> {
-    server.fn_handler("/connect", Method::Post, move |mut req| {
+    add_new_route(server, RouteData::new("/connect", Method::Post, move |mut req| {
         let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
         match parse_req_json_to(&mut req, buf) {
             Ok(creds) => {
                 info!("Got creds: {:?}", creds);
-                tx.send(super::ConnectionEvent::ConnectToWifi(creds))
+                tx.send(WE(ConnectToWifi(creds)))
                     .unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())
@@ -49,19 +51,19 @@ pub fn add_connect_route(
                 handler_bail!("{}", info)
             }
         }
-    })?;
+    }))?;
     Ok(())
 }
-pub fn add_rename_route(
+pub(super) fn add_rename_route(
     server: &mut esp_idf_svc::http::server::EspHttpServer,
-    tx: Sender<super::ConnectionEvent>,
+    tx: Sender<super::ConnectionRelevantEvent>,
 ) -> Result<()> {
-    server.fn_handler("/rename", Method::Post, move |mut req| {
+    add_new_route(server, RouteData::new("/rename", Method::Post, move |mut req| {
         let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
         match parse_req_json_to(&mut req, buf) {
             Ok(creds) => {
                 info!("Got creds: {:?}", creds);
-                tx.send(super::ConnectionEvent::HostAs(creds)).unwrap();
+                tx.send(WE(HostAs(creds))).unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())
             }
@@ -71,7 +73,7 @@ pub fn add_rename_route(
                 handler_bail!("{}", info)
             }
         }
-    })?;
+    }))?;
     Ok(())
 }
 
@@ -121,4 +123,31 @@ fn index_html() -> String {
         "Please download the app",
         r#"<meta http-equiv="Refresh" content="0; URL=https://espoxi.github.io/" />"#,
     )
+}
+
+pub struct RouteData {
+    uri: String,
+    method: Method,
+    handler: Box<dyn Fn(Request<&mut EspHttpConnection>) -> Result<(), HandlerError> + Send>,
+}
+impl RouteData {
+    pub fn new(
+        uri: impl Into<String>,
+        method: Method,
+        handler: impl Fn(Request<&mut EspHttpConnection>) -> Result<(), HandlerError> + Send + 'static,
+    ) -> Self {
+        Self {
+            uri: uri.into(),
+            method,
+            handler: Box::new(handler),
+        }
+    }
+}
+
+pub(crate) fn add_new_route(server: &mut esp_idf_svc::http::server::EspHttpServer, route_data: RouteData) -> anyhow::Result<()> {
+    let RouteData { uri, method, handler } = route_data;
+    match server.fn_handler(uri.as_str(), method, handler){
+        Ok(_) => Ok(()),
+        Err(e) => bail!("Failed to add route: {}", e)
+    }
 }
