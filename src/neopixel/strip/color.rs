@@ -100,7 +100,7 @@ impl Color {
         let hue = if delta <= 1f32 {
             0
         } else if max == r {
-            (42.5f32 * ((g - b)as f32 / delta)%255f32) as u8
+            (42.5f32 * ((g - b)as f32 / delta)%256f32) as u8
         } else if max == g {
             (42.5f32 * ((b - r)as f32 / delta)) as u8 + 85
         } else {
@@ -119,13 +119,13 @@ impl Color {
     }
 
     /// shift hue
-    /// hue: i16, -360 to 360
+    /// hue: i16, -255 to 255
     pub fn shift_hue(&mut self, hue: i16) -> &Self {
         let hsv = self.to_hsv();
-        let new_hue = hsv.hue as i16 + (hue as i16) *17/24; //255/360
+        let new_hue = hsv.hue as i16 + ((hue));// as f32) * 17.0/24.0) as i16; //255/360
         let new_hsv = Hsv::new((new_hue%255) as u8, hsv.saturation, hsv.value);
         let new = new_hsv.to_rgb();
-        println!("{:?}[{:?}] --({}->{})-> [{:?}]{:?}",self, hsv, hue, new_hue%255, new_hsv, new);
+        println!("{:?} ({:?} ---> {:?}) {:?}",self, hsv, new_hsv, new);
         (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
         self
     }

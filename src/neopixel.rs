@@ -1,4 +1,6 @@
-use std::{thread, time::Duration, sync::{Mutex, Arc}};
+use std::{thread, sync::{Mutex, Arc}};
+
+use esp_idf_hal::delay::FreeRtos;
 
 use self::strip::{color::Color, Strip};
 
@@ -32,10 +34,10 @@ impl NeopixelManager<'static> {
                 let mut colors = ccolors.lock().unwrap();
                 let size = colors.len();
                 for i in 0..size {
-                    (colors[i as usize]).shift_hue(10);
+                    (colors[i as usize]).shift_hue(1);
                 }
                 drop(colors);
-                thread::sleep(Duration::from_millis(100));
+                FreeRtos::delay_ms(100);
             }
         });
         Ok(())
@@ -47,7 +49,7 @@ impl NeopixelManager<'static> {
         thread::spawn(move|| {
             loop {
                 sstrip.send_colors(&ccolors.lock().unwrap()).unwrap();
-                thread::sleep(Duration::from_millis(100));
+                FreeRtos::delay_ms(20);
             }
         });
         self

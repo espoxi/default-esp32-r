@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     let nm = neopixel::NeopixelManager::new(neopixel::strip::Strip::ws2812b(//XXX: 2812(b?)
         pins.gpio14,
         peripherals.rmt.channel1,
-        30,
+        1,
     ));
     nm.set_rainbow()?;
     nm.run();
