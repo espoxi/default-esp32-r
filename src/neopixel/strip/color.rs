@@ -157,10 +157,8 @@ impl Color {
     /// hue: f32, range from 0 to 360
     pub fn shift_hue_deg(&mut self, hue: f32) -> &Self {
         let mut hsv = self.to_hsv();
-        print!("rgb: {:?}, \t hsv: {:?}", self, hsv);
         hsv.hue += hue;
         *self = hsv.to_rgb();
-        println!("\t-(hue+{})--> rgb: {:?}, \t hsv: {:?}", hue, self, hsv);
         self
     }
 
