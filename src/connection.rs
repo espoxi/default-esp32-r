@@ -27,7 +27,14 @@ pub struct Config {
     wifi_psk: &'static str,
 }
 
-pub(self) enum ConnectionRelevantEvent {
+#[macro_export]
+macro_rules! add_new_route {
+    ($sender:expr; $uri:expr, $method:ident, $handler:expr) => {
+        $sender.send(crate::connection::ConnectionRelevantEvent::Route(crate::connection::server::RouteData::new($uri, embedded_svc::http::server::Method::$method, $handler))).unwrap();
+    };
+}
+
+pub enum ConnectionRelevantEvent {
     Wifi(ConnectionEvent),
     Route(RouteData),
 }
@@ -36,9 +43,10 @@ pub fn init(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static + std::marker::Send,
     sysloop: EspSystemEventLoop,
     sstore: Arc<Mutex<DStore>>,
-) -> Result<Sender<RouteData>> {
+) -> Result<Sender<ConnectionRelevantEvent>> {
     let (succesful_wifi_connection_tx, succesful_wifi_connection_rx) = std::sync::mpsc::channel();
-    let (add_new_route_tx, add_new_route_rx) = std::sync::mpsc::channel::<RouteData>();
+    let (ttx, rx)  = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
+    let tx = ttx.clone();
     thread::Builder::new().stack_size(6 * 1024).spawn(move || {
 
         info!("Initializing wifi...");
@@ -84,14 +92,12 @@ pub fn init(
             }
         };
 
-        let (inner_tx, inner_rx) = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
-
-        s::add_connect_route(&mut server, inner_tx.clone()).unwrap();
-        s::add_rename_route(&mut server, inner_tx.clone()).unwrap();
+        s::add_connect_route(&mut server, tx.clone()).unwrap();
+        s::add_rename_route(&mut server, tx.clone()).unwrap();
         let _ = succesful_wifi_connection_tx.send(Ok(()));
         loop {
             // FreeRtos::delay_ms(100); //not needed since we are blocking on the rx (no busy waiting, and therefore no polling delay needed)
-            match inner_rx.recv() {
+            match rx.recv() {
                 Ok(ConnectionRelevantEvent::Wifi(event)) => match event {
                     ConnectionEvent::ConnectToWifi(creds) => {
                         info!("Connecting to wifi...");
@@ -127,7 +133,7 @@ pub fn init(
         }
     })?;
     succesful_wifi_connection_rx.recv()??;
-    Ok(add_new_route_tx)
+    Ok(ttx)
 }
 
 pub enum ConnectionEvent {

@@ -15,6 +15,7 @@ use std::{env, sync::Arc, thread, time::*};
 #[allow(unused_imports)]
 use anyhow::{bail, Result};
 
+use embedded_svc::io::Write;
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::gpio::PinDriver;
 #[allow(unused_imports)]
@@ -63,7 +64,12 @@ fn main() -> Result<()> {
         nm.effects.lock().unwrap().append(stored_effects);
     }
 
-    connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
+    let add_route_tx = connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
+    add_new_route!(add_route_tx; "/events", Get, |req|{
+        req.into_ok_response()?.write_all("nice, adding routes like this works".as_bytes())?;
+        // handler_bail!("dang");
+        Ok(())
+    });
 
     // let _sntp = sntp::EspSntp::new_default()?;
     // info!("SNTP initialized");

@@ -11,9 +11,10 @@ use serde::de;
 #[allow(unused_imports)]
 use super::wifi::Creds;
 
+#[macro_export]
 macro_rules! handler_bail {
     ($($t:tt)*) => {
-        return Err(HandlerError::new(format!($($t)*).as_str()))
+        return Err(embedded_svc::http::server::HandlerError::new(format!($($t)*).as_str()))
     };
 }
 
