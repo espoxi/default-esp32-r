@@ -23,24 +23,22 @@ impl NeopixelManager<'static> {
         Self { strip, colors , effects}
     }
 
-    pub fn run(& self) -> &Self{
+    ///mspf = milliseconds per frame = 1000 / fps
+    pub fn run(& self, mspf: u32) -> &Self{
         let ccolors = self.colors.clone();
         let sstrip =  self.strip.clone();
         let eeffects = self.effects.clone();
         thread::spawn(move|| {
-            let mut lt = Instant::now();
+            let s = Instant::now();
             loop {
-                let t = Instant::now();
-                let dt = t - lt;
-                lt = t;
                 let effects = eeffects.lock().unwrap();
                 let mut colors = ccolors.lock().unwrap();
-                effects::apply_effects(& effects, &mut colors, dt).unwrap();
+                effects::apply_effects(& effects, &mut colors, Instant::now()-s).unwrap();
                 // println!("applied effects effects: {:?}", effects);
                 drop(effects);
                 sstrip.send_colors(&colors).unwrap();
                 drop(colors);
-                FreeRtos::delay_ms(20);
+                FreeRtos::delay_ms(mspf);
             }
         });
         self

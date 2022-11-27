@@ -4,6 +4,7 @@ use super::strip::color::Color;
 
 pub mod hue;
 pub mod solid;
+pub mod strobo;
 
 #[derive(Debug)]
 pub enum EffectConfig {

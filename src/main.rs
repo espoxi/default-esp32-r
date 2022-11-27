@@ -65,7 +65,7 @@ fn main() -> Result<()> {
         peripherals.rmt.channel1,
         pixel_count,
     ));
-    nm.run();
+    nm.run(20);
     nm.effects.lock().unwrap().push(neopixel::effects::EffectConfig::SolidColor(
         neopixel::effects::solid::SolidColorConfig {
             color: neopixel::strip::color::Color::red(),
@@ -73,8 +73,8 @@ fn main() -> Result<()> {
     ));
     nm.effects.lock().unwrap().push(neopixel::effects::EffectConfig::HueShift(
         neopixel::effects::hue::HueShiftConfig {
-            degrees_per_led: pixel_count as f32 / 360.0,
-            degrees_per_second: 10.0,
+            degrees_per_led: 360.0 / pixel_count as f32,
+            degrees_per_second: 60.0,
         },
     ));
 
