@@ -132,7 +132,7 @@ impl Color {
         let min = fmin!(r, g, b);
         let delta = (max - min) as f32;
 
-        let hue = if delta <= 1f32 {
+        let hue = if delta == 0.0 {
             0.0
         } else if max == r {
             60.0 * ((g - b) / delta) % 360f32
@@ -248,7 +248,7 @@ impl Hsv {
         }
     }
     pub fn to_rgb(&self) -> Color {
-        let h = self.hue;
+        let h = self.hue % 360.0;
         let s = self.saturation;
         let v = self.value;
 
@@ -256,7 +256,7 @@ impl Hsv {
         let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
         let m = v - c;
 
-        let (r, g, b) = match h % 360.0 {
+        let (r, g, b) = match h {
             h if h < 60.0 => (c, x, 0.0),
             h if h < 120.0 => (x, c, 0.0),
             h if h < 180.0 => (0.0, c, x),
