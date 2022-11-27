@@ -65,8 +65,13 @@ fn main() -> Result<()> {
     }
 
     let add_route_tx = connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
-    add_new_route!(add_route_tx; "/events", Get, |req|{
-        req.into_ok_response()?.write_all("nice, adding routes like this works".as_bytes())?;
+    add_new_route!(add_route_tx; "/effects", Get, |req|{
+        req.into_ok_response()?.write_all("work in progress".as_bytes())?;
+        // handler_bail!("dang");
+        Ok(())
+    });
+    add_new_route!(add_route_tx; "/effects", Post, |req|{
+        req.into_ok_response()?.write_all("work in progress post".as_bytes())?;
         // handler_bail!("dang");
         Ok(())
     });
