@@ -34,10 +34,10 @@ impl NeopixelManager<'static> {
                 let mut colors = ccolors.lock().unwrap();
                 let size = colors.len();
                 for i in 0..size {
-                    (colors[i as usize]).shift_hue_deg(15.0);
+                    (colors[i as usize]).shift_hue_deg(5.0);
                 }
                 drop(colors);
-                FreeRtos::delay_ms(100);
+                FreeRtos::delay_ms(20);
             }
         });
         Ok(())
