@@ -1,115 +1,152 @@
 use std::{
-    cmp::{max, min},
     ops,
 };
 
+#[allow(unused_macros)]
 macro_rules! min {
     ($x: expr) => ($x);
     ($x: expr, $($z: expr),+) => (::std::cmp::min($x, min!($($z),*)));
 }
+
+#[allow(unused_macros)]
 macro_rules! max {
     ($x: expr) => ($x);
     ($x: expr, $($z: expr),+) => (::std::cmp::max($x, max!($($z),*)));
 }
 
+macro_rules! fmin {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => ($x.min(fmin!($($z),*)));
+}
+macro_rules! fmax {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => ($x.max(fmax!($($z),*)));
+}
+
 use super::LedColorOrder;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Color {
-    pub red: u8,
-    pub green: u8,
-    pub blue: u8,
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
 }
 
 #[allow(dead_code)]
 impl Color {
-    pub fn new(red: u8, green: u8, blue: u8) -> Self {
-        Self { red, green, blue }
+    pub fn from_u8(red: u8, green: u8, blue: u8) -> Self {
+        Self {
+            red: red as f32 / 255.0,
+            green: green as f32 / 255.0,
+            blue: blue as f32 / 255.0,
+        }
+    }
+
+    /// values should range from 0 to 1
+    pub fn new(red: f32, green: f32, blue: f32) -> Self {
+        // assert!(red >= 0.0 && red <= 1.0);
+        // assert!(green >= 0.0 && green <= 1.0);
+        // assert!(blue >= 0.0 && blue <= 1.0);
+        Self {
+            red: red,
+            green: green,
+            blue: blue,
+        }
+    }
+
+    pub fn from_hex(hex: u32, order: &LedColorOrder) -> Self {
+        let red = ((hex >> 16) & 0xFF) as f32 / 255.0;
+        let green = ((hex >> 8) & 0xFF) as f32 / 255.0;
+        let blue = (hex & 0xFF) as f32 / 255.0;
+        match order {
+            LedColorOrder::RGB => Self::new(red, green, blue),
+            LedColorOrder::GRB => Self::new(green, red, blue),
+        }
     }
 
     pub fn black() -> Self {
-        Self::new(0, 0, 0)
+        Self::from_u8(0, 0, 0)
     }
 
     pub fn white() -> Self {
-        Self::new(255, 255, 255)
+        Self::from_u8(255, 255, 255)
     }
 
     pub fn red() -> Self {
-        Self::new(255, 0, 0)
+        Self::from_u8(255, 0, 0)
     }
 
     pub fn green() -> Self {
-        Self::new(0, 255, 0)
+        Self::from_u8(0, 255, 0)
     }
 
     pub fn blue() -> Self {
-        Self::new(0, 0, 255)
+        Self::from_u8(0, 0, 255)
     }
 
     pub fn yellow() -> Self {
-        Self::new(255, 255, 0)
+        Self::from_u8(255, 255, 0)
     }
 
     pub fn cyan() -> Self {
-        Self::new(0, 255, 255)
+        Self::from_u8(0, 255, 255)
     }
 
     pub fn magenta() -> Self {
-        Self::new(255, 0, 255)
+        Self::from_u8(255, 0, 255)
     }
 
     pub fn orange() -> Self {
-        Self::new(255, 165, 0)
+        Self::from_u8(255, 165, 0)
     }
 
     pub fn purple() -> Self {
-        Self::new(128, 0, 128)
+        Self::from_u8(128, 0, 128)
     }
 
     pub fn pink() -> Self {
-        Self::new(255, 192, 203)
+        Self::from_u8(255, 192, 203)
     }
 
     pub fn brown() -> Self {
-        Self::new(165, 42, 42)
+        Self::from_u8(165, 42, 42)
     }
 
     pub fn gray() -> Self {
-        Self::new(128, 128, 128)
+        Self::from_u8(128, 128, 128)
     }
 
     pub fn silver() -> Self {
-        Self::new(192, 192, 192)
+        Self::from_u8(192, 192, 192)
     }
 
     pub fn gold() -> Self {
-        Self::new(255, 215, 0)
+        Self::from_u8(255, 215, 0)
     }
 
     /// convert to HSV
     fn to_hsv(&self) -> Hsv {
-        let r = self.red as i16;
-        let g = self.green as i16;
-        let b = self.blue as i16;
+        let r = self.red;
+        let g = self.green;
+        let b = self.blue;
 
-        let max = max!(r, g, b);
-        let min = min!(r, g, b);
+        let max = fmax!(r, g, b);
+        let min = fmin!(r, g, b);
         let delta = (max - min) as f32;
 
         let hue = if delta <= 1f32 {
-            0
+            0.0
         } else if max == r {
-            (42.5f32 * ((g - b)as f32 / delta)%256f32) as u8
+            60.0 * ((g - b) / delta) % 360f32
         } else if max == g {
-            (42.5f32 * ((b - r)as f32 / delta)) as u8 + 85
+            60.0 * ((b - r) / delta) + 120f32
         } else {
-            (42.5f32 * ((r - g)as f32 / delta)) as u8 + 170
+            60.0 * ((r - g) / delta) + 240f32
         };
 
-        let value = max as u8;
+        let value = max;
 
-        let saturation = if max == 0 { 0 } else { 255u16 * delta as u16 / max as u16 } as u8;
+        let saturation = if max <= 0.1 { 0.0 } else { delta / max };
 
         Hsv {
             hue: hue,
@@ -119,49 +156,34 @@ impl Color {
     }
 
     /// shift hue
-    /// hue: i16, -255 to 255
-    pub fn shift_hue(&mut self, hue: i16) -> &Self {
-        let hsv = self.to_hsv();
-        let new_hue = hsv.hue as i16 + ((hue));// as f32) * 17.0/24.0) as i16; //255/360
-        let new_hsv = Hsv::new((new_hue%255) as u8, hsv.saturation, hsv.value);
-        let new = new_hsv.to_rgb();
-        println!("{:?} ({:?} ---> {:?}) {:?}",self, hsv, new_hsv, new);
-        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
+    /// hue: f32, range from 0 to 360
+    pub fn shift_hue_deg(&mut self, hue: f32) -> &Self {
+        let mut hsv = self.to_hsv();
+        hsv.hue = (hsv.hue + hue) % 360f32;
+        *self = hsv.to_rgb();
         self
     }
 
     /// shift saturation
-    /// saturation: i8, -100 to 100
-    pub fn shift_saturation(&mut self, percent: i8) -> &Self {
-        let hsv = self.to_hsv();
-        let mut new_saturation = hsv.saturation as i16 + (percent as i16 * 51/20); //255/100
-        if new_saturation < 0 {
-            new_saturation = 0;
-        } else if new_saturation > 255 {
-            new_saturation = 255;
-        }
-        let new = Hsv::new(hsv.hue, new_saturation as u8, hsv.value).to_rgb();
-        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
+    /// saturation: f32, range from -1 to 1
+    pub fn shift_saturation(&mut self, percent: f32) -> &Self {
+        let mut hsv = self.to_hsv();
+        hsv.saturation = (hsv.saturation + percent).max(0.0).min(1.0);
+        *self = hsv.to_rgb();
         self
     }
 
     /// shift value
-    /// value: i16, -100 to 100
-    pub fn shift_value(&mut self, percent: i8) -> &Self {
-        let hsv = self.to_hsv();
-        let mut new_value = hsv.value as i16 + (percent as i16  * 51/20); //255/100
-        if new_value < 0 {
-            new_value = 0;
-        } else if new_value > 255 {
-            new_value = 255;
-        }
-        let new = Hsv::new(hsv.hue, hsv.saturation, new_value as u8).to_rgb();
-        (self.red, self.green, self.blue) = (new.red, new.green, new.blue);
+    /// value: f32, range from -1 to 1
+    pub fn shift_value(&mut self, percent: f32) -> &Self {
+        let mut hsv = self.to_hsv();
+        hsv.value = (hsv.value + percent).max(0.0).min(1.0);
+        *self = hsv.to_rgb();
         self
     }
 
     /// Returns the color as a 24-bit RGB value.
-    pub fn rgb(&self, order: &LedColorOrder) -> u32 {
+    pub fn to_u32(&self, order: &LedColorOrder) -> u32 {
         match order {
             LedColorOrder::RGB => {
                 ((self.red as u32) << 16) | ((self.green as u32) << 8) | self.blue as u32
@@ -173,7 +195,7 @@ impl Color {
     }
 
     pub fn to_bit_iter(&self, order: &LedColorOrder) -> impl Iterator<Item = bool> + '_ {
-        ColorBitString::new(self.rgb(order))
+        ColorBitString::new(self.to_u32(order))
     }
 }
 
@@ -198,21 +220,29 @@ impl Iterator for ColorBitString {
             return None;
         }
         self.current_bit_pos -= 1;
-        let bit = (self.color_u32 >> self.current_bit_pos)&1 == 1;
+        let bit = (self.color_u32 >> self.current_bit_pos) & 1 == 1;
         Some(bit)
     }
 }
 
-///HSV color space values range from 0 to 255
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+///HSV color space (Hue, Saturation, Value)
+/// Hue: 0-360
+/// Saturation: 0-1
+/// Value: 0-1
+#[derive(Debug, Copy, Clone, PartialEq)]
 struct Hsv {
-    hue: u8,
-    saturation: u8,
-    value: u8,
+    hue: f32,
+    saturation: f32,
+    value: f32,
 }
 
+#[allow(dead_code)]
 impl Hsv {
-    fn new(hue: u8, saturation: u8, value: u8) -> Self {
+    ///HSV color space (Hue, Saturation, Value)
+    /// Hue: 0-360
+    /// Saturation: 0-1
+    /// Value: 0-1
+    fn new(hue: f32, saturation: f32, value: f32) -> Self {
         Self {
             hue,
             saturation,
@@ -220,9 +250,9 @@ impl Hsv {
         }
     }
     pub fn to_rgb(&self) -> Color {
-        let h = self.hue as f32 / 255.0 * 360.0;
-        let s = self.saturation as f32 / 255.0;
-        let v = self.value as f32 / 255.0;
+        let h = self.hue;
+        let s = self.saturation;
+        let v = self.value;
 
         let c = v * s;
         let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
@@ -237,11 +267,7 @@ impl Hsv {
             _ => (c, 0.0, x),
         };
 
-        Color {
-            red: ((r + m) * 255.0) as u8,
-            green: ((g + m) * 255.0) as u8,
-            blue: ((b + m) * 255.0) as u8,
-        }
+        Color::new(r + m, g + m, b + m)
     }
 }
 
@@ -250,9 +276,9 @@ impl ops::Add<Color> for Color {
 
     fn add(self, _rhs: Color) -> Color {
         Color {
-            red: min(self.red + _rhs.red, 255),
-            green: min(self.green + _rhs.green, 255),
-            blue: min(self.blue + _rhs.blue, 255),
+            red: (self.red + _rhs.red) % 1.0,
+            green: (self.green + _rhs.green) % 1.0,
+            blue: (self.blue + _rhs.blue) % 1.0,
         }
     }
 }
@@ -262,9 +288,9 @@ impl ops::Sub<Color> for Color {
 
     fn sub(self, _rhs: Color) -> Color {
         Color {
-            red: max(self.red - _rhs.red, 0),
-            green: max(self.green - _rhs.green, 0),
-            blue: max(self.blue - _rhs.blue, 0),
+            red: (self.red - _rhs.red) % 1.0,
+            green: (self.green - _rhs.green) % 1.0,
+            blue: (self.blue - _rhs.blue) % 1.0,
         }
     }
 }
@@ -274,9 +300,9 @@ impl ops::Mul<Color> for Color {
 
     fn mul(self, _rhs: Color) -> Color {
         Color {
-            red: min(self.red * _rhs.red / 255, 255),
-            green: min(self.green * _rhs.green / 255, 255),
-            blue: min(self.blue * _rhs.blue / 255, 255),
+            red: (self.red * _rhs.red) % 1.0,
+            green: (self.green * _rhs.green) % 1.0,
+            blue: (self.blue * _rhs.blue) % 1.0,
         }
     }
 }
@@ -286,9 +312,9 @@ impl ops::Mul<f32> for Color {
 
     fn mul(self, _rhs: f32) -> Color {
         Color {
-            red: min((self.red as f32 * _rhs) as u8, 255),
-            green: min((self.green as f32 * _rhs) as u8, 255),
-            blue: min((self.blue as f32 * _rhs) as u8, 255),
+            red: (self.red * _rhs) % 1.0,
+            green: (self.green * _rhs) % 1.0,
+            blue: (self.blue * _rhs) % 1.0,
         }
     }
 }

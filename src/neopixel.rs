@@ -23,7 +23,7 @@ impl NeopixelManager<'static> {
         let ref mut rainbuf = self.colors.lock().unwrap();
         let size = rainbuf.len();
         for i in 0..size {
-            let color = *Color::green().shift_hue((i * 360 / size) as i16);
+            let color = *Color::green().shift_hue_deg(i as f32 * 360.0 / size as f32);
             rainbuf[i as usize] = color;
         }
         self.strip.send_colors(&rainbuf)?;
@@ -34,7 +34,7 @@ impl NeopixelManager<'static> {
                 let mut colors = ccolors.lock().unwrap();
                 let size = colors.len();
                 for i in 0..size {
-                    (colors[i as usize]).shift_hue(1);
+                    (colors[i as usize]).shift_hue_deg(1.0);
                 }
                 drop(colors);
                 FreeRtos::delay_ms(100);

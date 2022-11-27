@@ -47,13 +47,14 @@ embedded-svc = "0.23"
 embedded-hal = "0.2"
 # smol = "1.2"
 toml-cfg = "0.1.3"
+# float-cmp = { version = "0.9.0", features = ["std"] }
+# once_cell = "1.16.0"
 
 #(de-)serialisierung
 serde = { version = "1.0.147", features = ["derive"] }
 postcard = { version = "1.0.2", features = ["use-std"] }
 serde_json = "1.0.89"
 heapless = "0.7.16"
-# once_cell = "1.16.0"
 
 
 [build-dependencies]
