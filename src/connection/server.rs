@@ -136,7 +136,7 @@ pub(super) fn add_connect_route(
                 Ok(ip) => {
                     match ip.as_ref(){
                         Some(ip) => {
-                            send_as_json!(req, ip.octets())
+                            send_as_json!(req, ip)
                         }
                         None => {
                             handler_soft_bail!(req;"no ip");
