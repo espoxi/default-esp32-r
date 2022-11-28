@@ -88,7 +88,7 @@ impl Wlan {
         Ok(sself)
     }
 
-    pub fn connect_to(&mut self, creds: Creds) -> Result<()> {
+    pub fn connect_to(&mut self, creds: Creds) -> Result<Ipv4Addr> {
         let (ssid, psk) = (creds.ssid.as_str(), creds.psk.as_str());
         let mut auth_method = AuthMethod::WPAWPA2Personal;
         check_credentials(ssid, psk, &mut auth_method)?;
@@ -155,7 +155,7 @@ impl Wlan {
 
         ping(ip_info.subnet.gateway)?;
 
-        Ok(())
+        Ok(ip_info.ip)
     }
 
     pub fn host_as(&mut self, creds: Creds) -> Result<()> {

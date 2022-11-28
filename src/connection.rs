@@ -5,8 +5,8 @@ use std::{
 
 use anyhow::{bail, Result};
 use embedded_svc::ipv4;
-use esp_idf_hal::{peripheral};
-use esp_idf_svc::{eventloop::EspSystemEventLoop,  ping};
+use esp_idf_hal::peripheral;
+use esp_idf_svc::{eventloop::EspSystemEventLoop, ping};
 use log::{info, warn};
 
 pub mod client;
@@ -30,7 +30,15 @@ pub struct Config {
 #[macro_export]
 macro_rules! add_new_route {
     ($sender:expr; $uri:expr, $method:ident, $handler:expr) => {
-        $sender.send(crate::connection::ConnectionRelevantEvent::Route(crate::connection::server::RouteData::new($uri, embedded_svc::http::server::Method::$method, $handler))).unwrap();
+        $sender
+            .send(crate::connection::ConnectionRelevantEvent::Route(
+                crate::connection::server::RouteData::new(
+                    $uri,
+                    embedded_svc::http::server::Method::$method,
+                    $handler,
+                ),
+            ))
+            .unwrap();
     };
 }
 
@@ -45,10 +53,9 @@ pub fn init(
     sstore: Arc<Mutex<DStore>>,
 ) -> Result<Sender<ConnectionRelevantEvent>> {
     let (succesful_wifi_connection_tx, succesful_wifi_connection_rx) = std::sync::mpsc::channel();
-    let (ttx, rx)  = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
+    let (ttx, rx) = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
     let tx = ttx.clone();
     thread::Builder::new().stack_size(6 * 1024).spawn(move || {
-
         info!("Initializing wifi...");
         let mut wifi = match Wlan::start(modem, sysloop) {
             Ok(w) => w,
@@ -92,7 +99,8 @@ pub fn init(
             }
         };
 
-        s::add_connect_route(&mut server, tx.clone()).unwrap();
+        let (connection_tx, connection_rx) = std::sync::mpsc::channel();
+        s::add_connect_route(&mut server, tx.clone(), connection_rx).unwrap();
         s::add_rename_route(&mut server, tx.clone()).unwrap();
         let _ = succesful_wifi_connection_tx.send(Ok(()));
         loop {
@@ -104,8 +112,14 @@ pub fn init(
                         let mut ssstore = sstore.lock().unwrap();
                         ssstore.set("client_creds", &creds).unwrap();
                         match wifi.connect_to(creds) {
-                            Ok(_) => info!("Connected to wifi"),
-                            Err(e) => warn!("Failed to connect to wifi: {}", e),
+                            Ok(address) => {
+                                info!("Connected to wifi as {}", address);
+                                let _ = connection_tx.send(Ok(address));
+                            }
+                            Err(e) => {
+                                warn!("Failed to connect to wifi: {}", e);
+                                let _ = connection_tx.send(Err(e));
+                            }
                         };
                     }
                     ConnectionEvent::HostAs(creds) => {

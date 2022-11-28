@@ -1,11 +1,12 @@
-use std::sync::mpsc::Sender;
+use std::net::Ipv4Addr;
+use std::sync::mpsc::{Sender, Receiver};
 
 use anyhow::{bail, Result};
 
 use embedded_svc::http::server::{HandlerError, Method, Request};
 use embedded_svc::io::{Read, Write};
 use esp_idf_svc::http::server::EspHttpConnection;
-use log::{info, warn};
+use log::{info};
 use serde::de;
 
 #[allow(unused_imports)]
@@ -113,8 +114,35 @@ macro_rules! send_creds_on_route_as_event {
 pub(super) fn add_connect_route(
     server: &mut esp_idf_svc::http::server::EspHttpServer,
     tx: Sender<super::ConnectionRelevantEvent>,
+    rx: Receiver<anyhow::Result<Ipv4Addr>>
 ) -> Result<()> {
-    send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi)
+    add_new_route(
+        server,
+        RouteData::new("/connect", Method::Post, move |mut req| {
+            let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
+            tx.send(WE(ConnectToWifi(creds))).unwrap();
+            // loop {
+            match rx.recv() {
+                Ok(Ok(ip)) => {
+                    info!("got ip: {}", ip);
+                    req.into_ok_response()?.write_all(&ip.octets())?;
+                }
+                Ok(Err(e)) => {
+                    info!("got error: {}", e);
+                    req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;
+                }
+                Err(e) => {
+                    info!("got error: {}", e);
+                    req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;
+                }
+            };
+
+            // }
+            // req.into_ok_response().unwrap();
+            // Ok(())
+            Ok(())
+        }),
+    )
 }
 pub(super) fn add_rename_route(
     server: &mut esp_idf_svc::http::server::EspHttpServer,
