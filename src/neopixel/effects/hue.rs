@@ -9,7 +9,7 @@ use super::Effect;
 
 pub struct HueShiftEffect;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HueShiftConfig {
     pub degrees_per_second: f32,
     pub degrees_per_led: f32,

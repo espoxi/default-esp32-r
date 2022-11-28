@@ -18,68 +18,31 @@ macro_rules! handler_bail {
     };
 }
 
-#[cfg(feature = "experimental")]
-pub fn init_server() -> Result<esp_idf_svc::http::server::EspHttpServer> {
-    let mut server = esp_idf_svc::http::server::EspHttpServer::new(&Default::default())?;
 
-    server.fn_handler("/", Method::Get, |req| {
-        req.into_ok_response()?.write_all(index_html().as_bytes())?;
-        Ok(())
-    })?;
-    Ok(server)
+#[macro_export]
+macro_rules! send_as_json {
+    ($req:ident, $e:expr) => {
+        match serde_json::to_vec(&$e){
+            Ok(ref b) => {$req.into_ok_response()?.write_all(b)?;Ok(())},
+            Err(e) => {$req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;handler_bail!("whoppa: {:?}", e)},
+        }
+    };
 }
 
-use super::{ConnectionEvent::{ConnectToWifi,HostAs},ConnectionRelevantEvent::Wifi as WE};
+
+#[macro_export]
+macro_rules! match_parsed_json {
+    ($req:expr, $($t:tt)*) => {
+        {
+            let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
+            match parse_req_json_to(&mut $req, buf)$($t)*
+        }
+    };
+}
 
 const BODY_BUFFER_SIZE: u16 = 1024;
-pub(super) fn add_connect_route(
-    server: &mut esp_idf_svc::http::server::EspHttpServer,
-    tx: Sender<super::ConnectionRelevantEvent>,
-) -> Result<()> {
-    add_new_route(server, RouteData::new("/connect", Method::Post, move |mut req| {
-        let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
-        match parse_req_json_to(&mut req, buf) {
-            Ok(creds) => {
-                info!("Got creds: {:?}", creds);
-                tx.send(WE(ConnectToWifi(creds)))
-                    .unwrap();
-                req.into_ok_response().unwrap();
-                Ok(())
-            }
-            Err(e) => {
-                let info = format!("failed to parse creds: {}", e);
-                req.into_status_response(400)?.write_all(info.as_bytes())?;
-                handler_bail!("{}", info)
-            }
-        }
-    }))?;
-    Ok(())
-}
-pub(super) fn add_rename_route(
-    server: &mut esp_idf_svc::http::server::EspHttpServer,
-    tx: Sender<super::ConnectionRelevantEvent>,
-) -> Result<()> {
-    add_new_route(server, RouteData::new("/rename", Method::Post, move |mut req| {
-        let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
-        match parse_req_json_to(&mut req, buf) {
-            Ok(creds) => {
-                info!("Got creds: {:?}", creds);
-                tx.send(WE(HostAs(creds))).unwrap();
-                req.into_ok_response().unwrap();
-                Ok(())
-            }
-            Err(e) => {
-                let info = format!("failed to parse creds: {}", e);
-                req.into_status_response(400)?.write_all(info.as_bytes())?;
-                handler_bail!("{}", info)
-            }
-        }
-    }))?;
-    Ok(())
-}
-
 // const BODY_BUFFER_SIZE: u16 = 1024;
-fn parse_req_json_to<'a, T>(
+pub fn parse_req_json_to<'a, T>(
     r: &mut Request<&mut EspHttpConnection>,
     buf: &'a mut [u8],
 ) -> anyhow::Result<T>
@@ -93,6 +56,57 @@ where
         Err(e) => bail!("Failed to parse request body: {}", e),
     };
     Ok(data)
+}
+
+pub fn init_server() -> Result<esp_idf_svc::http::server::EspHttpServer> {
+    let mut server = esp_idf_svc::http::server::EspHttpServer::new(&Default::default())?;
+
+    server.fn_handler("/", Method::Get, |req| {
+        req.into_ok_response()?.write_all(index_html().as_bytes())?;
+        Ok(())
+    })?;
+    Ok(server)
+}
+
+use super::{
+    ConnectionEvent::{ConnectToWifi, HostAs},
+    ConnectionRelevantEvent::Wifi as WE,
+};
+
+macro_rules! send_creds_on_route_as_event {
+    ($server:ident, $tx:ident, $url:expr, $event:expr) => {
+        add_new_route(
+            $server,
+            RouteData::new($url, Method::Post, move |mut req| {
+                match_parsed_json!(req,{
+                    Ok(creds) => {
+                        info!("Got creds: {:?}", creds);
+                        $tx.send(WE($event(creds))).unwrap();
+                        req.into_ok_response().unwrap();
+                        Ok(())
+                    }
+                    Err(e) => {
+                        let info = format!("failed to parse creds: {}", e);
+                        req.into_status_response(400)?.write_all(info.as_bytes())?;
+                        handler_bail!("{}", info)
+                    }
+                })
+            }),
+        )
+    };
+}
+
+pub(super) fn add_connect_route(
+    server: &mut esp_idf_svc::http::server::EspHttpServer,
+    tx: Sender<super::ConnectionRelevantEvent>,
+) -> Result<()> {
+    send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi)
+}
+pub(super) fn add_rename_route(
+    server: &mut esp_idf_svc::http::server::EspHttpServer,
+    tx: Sender<super::ConnectionRelevantEvent>,
+) -> Result<()> {
+    send_creds_on_route_as_event!(server, tx, "/rename", HostAs)
 }
 
 #[allow(dead_code)]
@@ -145,10 +159,17 @@ impl RouteData {
     }
 }
 
-pub(crate) fn add_new_route(server: &mut esp_idf_svc::http::server::EspHttpServer, route_data: RouteData) -> anyhow::Result<()> {
-    let RouteData { uri, method, handler } = route_data;
-    match server.fn_handler(uri.as_str(), method, handler){
+pub(crate) fn add_new_route(
+    server: &mut esp_idf_svc::http::server::EspHttpServer,
+    route_data: RouteData,
+) -> anyhow::Result<()> {
+    let RouteData {
+        uri,
+        method,
+        handler,
+    } = route_data;
+    match server.fn_handler(uri.as_str(), method, handler) {
         Ok(_) => Ok(()),
-        Err(e) => bail!("Failed to add route: {}", e)
+        Err(e) => bail!("Failed to add route: {}", e),
     }
 }

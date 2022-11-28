@@ -9,7 +9,7 @@ use super::{Effect, solid::{SolidColorEffect, SolidColorConfig}};
 
 pub struct StroboEffect;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StroboConfig {
     pub frequency_hz: f32,
 }

@@ -8,7 +8,7 @@ pub mod hue;
 pub mod solid;
 pub mod strobo;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EffectConfig {
     HueShift(hue::HueShiftConfig),
     SolidColor(solid::SolidColorConfig),

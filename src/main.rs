@@ -29,6 +29,9 @@ use esp_idf_svc::eventloop::*;
 use esp_idf_hal::prelude::*;
 use neopixel::effects::EffectConfig;
 
+use crate::neopixel::NeopixelManager;
+use crate::neopixel::strip::Strip;
+
 // use esp_idf_sys::{self, c_types};
 
 // static store:store::DStore = store::default();
@@ -53,11 +56,11 @@ fn main() -> Result<()> {
     let store = Arc::new(Mutex::new(store::default()));
 
     let pixel_count = 30;
-    let nm = neopixel::NeopixelManager::new(neopixel::strip::Strip::ws2812b(//XXX: 2812(b?)
+    let nm = Arc::new(NeopixelManager::new(Strip::ws2812b(//XXX: 2812(b?)
         pins.gpio14,
         peripherals.rmt.channel1,
         pixel_count,
-    ));
+    )));
     nm.run(20);
 
     if let Ok(Some(ref mut stored_effects)) = store.lock().unwrap().get::<Vec<EffectConfig>>("effects"){
@@ -65,10 +68,13 @@ fn main() -> Result<()> {
     }
 
     let add_route_tx = connection::init(peripherals.modem, sysloop.clone(), store.clone())?;
-    add_new_route!(add_route_tx; "/effects", Get, |req|{
-        req.into_ok_response()?.write_all("work in progress".as_bytes())?;
-        // handler_bail!("dang");
-        Ok(())
+
+    let nm2 = nm.clone();
+    add_new_route!(add_route_tx; "/effects", Get, move |req|{
+        let effects = nm2.effects.lock().unwrap();
+        let e = Vec::clone(&effects); //XXX: i wanna be able to just return the lock fast, idk tho if vec clone is faster than parse json, but as u can see here i suppose it is
+        drop(effects);
+        send_as_json!(req, e)
     });
     add_new_route!(add_route_tx; "/effects", Post, |req|{
         req.into_ok_response()?.write_all("work in progress post".as_bytes())?;

@@ -9,7 +9,7 @@ use super::Effect;
 
 pub struct SolidColorEffect;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolidColorConfig {
     pub color: Color,
 }
