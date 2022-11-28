@@ -1,5 +1,6 @@
 use std::net::Ipv4Addr;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::{Mutex, Arc};
+use std::sync::mpsc::{Sender};
 
 use anyhow::{bail, Result};
 
@@ -16,6 +17,15 @@ use super::wifi::Creds;
 macro_rules! handler_bail {
     ($($t:tt)*) => {
         return Err(embedded_svc::http::server::HandlerError::new(format!($($t)*).as_str()))
+    };
+}
+
+macro_rules! handler_soft_bail {
+    ($req:ident;$($t:tt)*) => {
+        {
+            $req.into_status_response(500)?.write_all(format!($($t)*).as_bytes())?;
+            return Ok(());
+        }
     };
 }
 
@@ -114,32 +124,29 @@ macro_rules! send_creds_on_route_as_event {
 pub(super) fn add_connect_route(
     server: &mut esp_idf_svc::http::server::EspHttpServer,
     tx: Sender<super::ConnectionRelevantEvent>,
-    rx: Receiver<anyhow::Result<Ipv4Addr>>
+    ip: Arc<Mutex<Option<Ipv4Addr>>>,
 ) -> Result<()> {
+    if let Err(e) = send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi){
+        panic!("failed adding connect route: {}", e);
+    }
     add_new_route(
         server,
-        RouteData::new("/connect", Method::Post, move |mut req| {
-            let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
-            tx.send(WE(ConnectToWifi(creds))).unwrap();
-            // loop {
-            match rx.recv() {
-                Ok(Ok(ip)) => {
-                    info!("got ip: {}", ip);
-                    req.into_ok_response()?.write_all(&ip.octets())?;
-                }
-                Ok(Err(e)) => {
-                    info!("got error: {}", e);
-                    req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;
+        RouteData::new("/ip", Method::Get, move |req| {
+            let _ :Result<(),HandlerError> = match ip.lock(){
+                Ok(ip) => {
+                    match ip.as_ref(){
+                        Some(ip) => {
+                            send_as_json!(req, ip)
+                        }
+                        None => {
+                            handler_soft_bail!(req;"no ip");
+                        }
+                    }
                 }
                 Err(e) => {
-                    info!("got error: {}", e);
-                    req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;
+                    handler_soft_bail!(req;"failed to lock ip: {:?}", e)
                 }
             };
-
-            // }
-            // req.into_ok_response().unwrap();
-            // Ok(())
             Ok(())
         }),
     )

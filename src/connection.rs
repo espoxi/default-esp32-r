@@ -1,4 +1,5 @@
 use std::{
+    net::Ipv4Addr,
     sync::{mpsc::Sender, Arc, Mutex},
     thread,
 };
@@ -52,7 +53,7 @@ pub fn init(
     sysloop: EspSystemEventLoop,
     sstore: Arc<Mutex<DStore>>,
 ) -> Result<Sender<ConnectionRelevantEvent>> {
-    let (succesful_wifi_connection_tx, succesful_wifi_connection_rx) = std::sync::mpsc::channel();
+    let (successful_wifi_connection_tx, succesful_wifi_connection_rx) = std::sync::mpsc::channel();
     let (ttx, rx) = std::sync::mpsc::channel::<ConnectionRelevantEvent>();
     let tx = ttx.clone();
     thread::Builder::new().stack_size(6 * 1024).spawn(move || {
@@ -61,7 +62,7 @@ pub fn init(
             Ok(w) => w,
             Err(e) => {
                 warn!("Failed to start wifi: {}", e);
-                let _ = succesful_wifi_connection_tx.send(Err(e));
+                let _ = successful_wifi_connection_tx.send(Err(e));
                 return;
             }
         };
@@ -94,15 +95,16 @@ pub fn init(
             Ok(s) => s,
             Err(e) => {
                 warn!("Failed to start http server: {}", e);
-                let _ = succesful_wifi_connection_tx.send(Err(e));
+                let _ = successful_wifi_connection_tx.send(Err(e));
                 return;
             }
         };
 
-        let (connection_tx, connection_rx) = std::sync::mpsc::channel();
-        s::add_connect_route(&mut server, tx.clone(), connection_rx).unwrap();
+        // let (connection_tx, connection_rx) = std::sync::mpsc::channel();
+        let sta_ip = Arc::new(Mutex::new(None::<Ipv4Addr>));
+        s::add_connect_route(&mut server, tx.clone(), sta_ip.clone()).unwrap();
         s::add_rename_route(&mut server, tx.clone()).unwrap();
-        let _ = succesful_wifi_connection_tx.send(Ok(()));
+        let _ = successful_wifi_connection_tx.send(Ok(()));
         loop {
             // FreeRtos::delay_ms(100); //not needed since we are blocking on the rx (no busy waiting, and therefore no polling delay needed)
             match rx.recv() {
@@ -114,11 +116,11 @@ pub fn init(
                         match wifi.connect_to(creds) {
                             Ok(address) => {
                                 info!("Connected to wifi as {}", address);
-                                let _ = connection_tx.send(Ok(address));
+                                *sta_ip.lock().unwrap() = Some(address);
                             }
                             Err(e) => {
                                 warn!("Failed to connect to wifi: {}", e);
-                                let _ = connection_tx.send(Err(e));
+                                *sta_ip.lock().unwrap() = None;
                             }
                         };
                     }
