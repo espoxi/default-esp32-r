@@ -76,10 +76,13 @@ fn main() -> Result<()> {
         drop(effects);
         send_as_json!(req, e)
     });
-    add_new_route!(add_route_tx; "/effects", Post, |req|{
-        req.into_ok_response()?.write_all("work in progress post".as_bytes())?;
-        // handler_bail!("dang");
-        Ok(())
+
+    let nm3 = nm.clone();
+    add_new_route!(add_route_tx; "/effects", Post, move |mut req|{
+        let new_effects : Vec<EffectConfig> = parse_req_or_fail_with_message!(req; "couldn't parse effects.. {}");
+        store.lock().unwrap().set("effects", &new_effects).unwrap();
+        *nm3.effects.lock().unwrap() = new_effects;
+        send_as_json!(req, "ok")
     });
 
     // let _sntp = sntp::EspSntp::new_default()?;

@@ -29,18 +29,34 @@ macro_rules! send_as_json {
     };
 }
 
-
 #[macro_export]
 macro_rules! match_parsed_json {
     ($req:expr, $($t:tt)*) => {
         {
-            let buf = &mut [0u8; BODY_BUFFER_SIZE as usize];
-            match parse_req_json_to(&mut $req, buf)$($t)*
+            let buf = &mut [0u8; crate::connection::server::BODY_BUFFER_SIZE as usize];
+            match crate::connection::server::parse_req_json_to(&mut $req, buf)$($t)*
         }
     };
 }
 
-const BODY_BUFFER_SIZE: u16 = 1024;
+#[macro_export]
+macro_rules! parse_req_or_fail_with_message {
+    ($req:expr; $($t:tt)*) => {
+        match_parsed_json!($req,{
+            Ok(parsed) => {
+                info!("parsed body: {:?}", parsed);
+                parsed
+            }
+            Err(err) => {
+                let info = format!($($t)*, err);
+                $req.into_status_response(400)?.write_all(info.as_bytes())?;
+                handler_bail!("{}", info)
+            }
+        })
+    };
+}
+
+pub const BODY_BUFFER_SIZE: u16 = 1024;
 // const BODY_BUFFER_SIZE: u16 = 1024;
 pub fn parse_req_json_to<'a, T>(
     r: &mut Request<&mut EspHttpConnection>,
@@ -78,19 +94,10 @@ macro_rules! send_creds_on_route_as_event {
         add_new_route(
             $server,
             RouteData::new($url, Method::Post, move |mut req| {
-                match_parsed_json!(req,{
-                    Ok(creds) => {
-                        info!("Got creds: {:?}", creds);
-                        $tx.send(WE($event(creds))).unwrap();
-                        req.into_ok_response().unwrap();
-                        Ok(())
-                    }
-                    Err(e) => {
-                        let info = format!("failed to parse creds: {}", e);
-                        req.into_status_response(400)?.write_all(info.as_bytes())?;
-                        handler_bail!("{}", info)
-                    }
-                })
+                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
+                $tx.send(WE($event(creds))).unwrap();
+                req.into_ok_response().unwrap();
+                Ok(())
             }),
         )
     };
