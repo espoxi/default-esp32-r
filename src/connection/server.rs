@@ -48,6 +48,7 @@ macro_rules! parse_req_or_fail_with_message {
                 parsed
             }
             Err(err) => {
+                println!("Failed to parse body: {}", err);
                 let info = format!($($t)*, err);
                 $req.into_status_response(400)?.write_all(info.as_bytes())?;
                 handler_bail!("{}", info)
@@ -67,11 +68,10 @@ where
 {
     let len = r.read(buf)?;
     info!("parsing body...\n{}", show(&buf[0..len]));
-    let data = match serde_json::from_slice::<T>(&buf[0..len]) {
-        Ok(t) => t,
-        Err(e) => {warn!("Failed to parse request body: {}", e);bail!("Failed to parse request body: {}", e)},
-    };
-    Ok(data)
+    match serde_json::from_slice::<T>(&buf[0..len]) {
+        Ok(t) => Ok(t),
+        Err(e) => {warn!("failed: {}",e);Err(anyhow::anyhow!("Failed to parse request body: {}", e))},
+    }
 }
 use std::ascii::escape_default;
 use std::str;
@@ -105,7 +105,20 @@ macro_rules! send_creds_on_route_as_event {
         add_new_route(
             $server,
             RouteData::new($url, Method::Post, move |mut req| {
-                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
+                // let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
+                let buf = &mut [0u8; crate::connection::server::BODY_BUFFER_SIZE as usize];
+                let creds = match crate::connection::server::parse_req_json_to(&mut req, buf){
+                    Ok(parsed) => {
+                        info!("parsed body: {:?}", parsed);
+                        parsed
+                    }
+                    Err(err) => {
+                        println!("Failed to parse body: {}", err);
+                        let info = format!("failed parsing creds: {}", err);
+                        req.into_status_response(400)?.write_all(info.as_bytes())?;
+                        handler_bail!("{}", info)
+                    }
+                };
                 $tx.send(WE($event(creds))).unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())

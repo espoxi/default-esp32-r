@@ -65,6 +65,7 @@ fn main() -> Result<()> {
     nm.run(20);
 
     if let Ok(Some(ref mut stored_effects)) = store.lock().unwrap().get::<Vec<EffectConfig>>("effects"){
+        // info!("Found stored effects: {:?}", stored_effects);
         nm.effects.lock().unwrap().append(stored_effects);
     }
 
