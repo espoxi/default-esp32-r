@@ -48,7 +48,6 @@ macro_rules! parse_req_or_fail_with_message {
                 parsed
             }
             Err(err) => {
-                println!("Failed to parse body: {}", err);
                 let info = format!($($t)*, err);
                 $req.into_status_response(400)?.write_all(info.as_bytes())?;
                 handler_bail!("{}", info)
@@ -62,16 +61,13 @@ pub const BODY_BUFFER_SIZE: u16 = 1024;
 pub fn parse_req_json_to<'a, T>(
     r: &mut Request<&mut EspHttpConnection>,
     buf: &'a mut [u8],
-) -> anyhow::Result<T>
+) -> Result<T,serde_json::Error>
 where
     T: de::Deserialize<'a> + Clone,
 {
-    let len = r.read(buf)?;
+    let len = r.read(buf).unwrap();
     info!("parsing body...\n{}", show(&buf[0..len]));
-    match serde_json::from_slice::<T>(&buf[0..len]) {
-        Ok(t) => Ok(t),
-        Err(e) => {warn!("failed: {}",e);Err(anyhow::anyhow!("Failed to parse request body: {}", e))},
-    }
+    serde_json::from_slice::<T>(&buf[0..len]) 
 }
 use std::ascii::escape_default;
 use std::str;
@@ -105,20 +101,7 @@ macro_rules! send_creds_on_route_as_event {
         add_new_route(
             $server,
             RouteData::new($url, Method::Post, move |mut req| {
-                // let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
-                let buf = &mut [0u8; crate::connection::server::BODY_BUFFER_SIZE as usize];
-                let creds = match crate::connection::server::parse_req_json_to(&mut req, buf){
-                    Ok(parsed) => {
-                        info!("parsed body: {:?}", parsed);
-                        parsed
-                    }
-                    Err(err) => {
-                        println!("Failed to parse body: {}", err);
-                        let info = format!("failed parsing creds: {}", err);
-                        req.into_status_response(400)?.write_all(info.as_bytes())?;
-                        handler_bail!("{}", info)
-                    }
-                };
+                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
                 $tx.send(WE($event(creds))).unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())
