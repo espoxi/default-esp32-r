@@ -128,7 +128,7 @@ pub(super) fn add_connect_route(
 ) -> Result<()> {
     if let Err(e) = send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi){
         panic!("failed adding connect route: {}", e);
-    }
+    };
     add_new_route(
         server,
         RouteData::new("/ip", Method::Get, move |req| {
@@ -136,7 +136,7 @@ pub(super) fn add_connect_route(
                 Ok(ip) => {
                     match ip.as_ref(){
                         Some(ip) => {
-                            send_as_json!(req, ip)
+                            send_as_json!(req, ip.octets())
                         }
                         None => {
                             handler_soft_bail!(req;"no ip");
