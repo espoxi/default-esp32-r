@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use embedded_svc::http::server::{HandlerError, Method, Request};
 use embedded_svc::io::{Read, Write};
 use esp_idf_svc::http::server::EspHttpConnection;
-use log::info;
+use log::{info, warn};
 use serde::de;
 
 #[allow(unused_imports)]
@@ -65,13 +65,24 @@ pub fn parse_req_json_to<'a, T>(
 where
     T: de::Deserialize<'a> + Clone,
 {
-    // let mut buf = Vec::new();//[0u8; BODY_BUFFER_SIZE as usize];
     let len = r.read(buf)?;
+    info!("parsing body...\n{}", show(&buf[0..len]));
     let data = match serde_json::from_slice::<T>(&buf[0..len]) {
         Ok(t) => t,
-        Err(e) => bail!("Failed to parse request body: {}", e),
+        Err(e) => {warn!("Failed to parse request body: {}", e);bail!("Failed to parse request body: {}", e)},
     };
     Ok(data)
+}
+use std::ascii::escape_default;
+use std::str;
+
+fn show(bs: &[u8]) -> String {
+    let mut visible = String::new();
+    for &b in bs {
+        let part: Vec<u8> = escape_default(b).collect();
+        visible.push_str(str::from_utf8(&part).unwrap());
+    }
+    visible
 }
 
 pub fn init_server() -> Result<esp_idf_svc::http::server::EspHttpServer> {

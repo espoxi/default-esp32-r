@@ -119,7 +119,6 @@ pub fn init(
                     }
                 },
                 Ok(ConnectionRelevantEvent::Route(route_data)) => {
-                    info!("Adding new route...");
                     match s::add_new_route(&mut server, route_data) {
                         Ok(_) => info!("Added new route"),
                         Err(e) => warn!("Failed to add new route: {}", e),
