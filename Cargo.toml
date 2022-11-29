@@ -59,7 +59,7 @@ heapless = "0.7.16"
 
 [build-dependencies]
 embuild = { version = "0.30.4", features = ["elf"] }
-anyhow = {version = "1", features = ["backtrace"]}
+anyhow = {version = "1"}
 
 # Future; might be possible once https://github.com/rust-lang/cargo/issues/9096 hits Cargo nightly:
 #rust-esp32-ulp-blink = { git = "https://github.com/ivmarkov/rust-esp32-ulp-blink", artifact = "bin" }
