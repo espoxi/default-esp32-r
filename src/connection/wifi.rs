@@ -88,14 +88,20 @@ impl Wlan {
         Ok(sself)
     }
 
-    pub fn connect_to(&mut self, creds: Creds) -> Result<Ipv4Addr> {
+    pub fn connect_to(&mut self, creds: Creds) -> std::result::Result<Ipv4Addr, String> {
         let (ssid, psk) = (creds.ssid.as_str(), creds.psk.as_str());
         let mut auth_method = AuthMethod::WPAWPA2Personal;
-        check_credentials(ssid, psk, &mut auth_method)?;
+        match check_credentials(ssid, psk, &mut auth_method){
+            Ok(()) => (),
+            Err(e) => return Err(e.to_string()),
+        };
 
         info!("Wifi scan");
 
-        let ap_infos = self.wifi.scan()?;
+        let ap_infos = match self.wifi.scan(){
+            Ok(ap_infos) => ap_infos,
+            Err(e) => return Err(e.to_string()),
+        };
 
         let ours = &ap_infos.into_iter().find(|a| a.ssid == ssid);
 
@@ -124,38 +130,65 @@ impl Wlan {
             ..Default::default()
         };
         self.config.client = Some(client_config);
-        self.load_cfg()?;
 
-        self.wifi.start()?;
+        match self.load_cfg(){
+            Ok(_) => {
+                info!("Wifi config loaded");
+            },
+            Err(e) => {
+                return Err(format!("Wifi config not loaded: {}", e));
+            }
+        };
+
+        match self.wifi.start(){
+            Ok(_) => {
+                info!("Wifi started");
+            },
+            Err(e) => {
+                return Err(format!("Wifi couldnt start: {}", e));
+            }
+        };
 
         info!("Starting wifi...");
 
-        if !WifiWait::new(&self.event_loop)?
+        if !WifiWait::new(&self.event_loop).unwrap()
             .wait_with_timeout(Duration::from_secs(20), || self.wifi.is_started().unwrap())
         {
-            bail!("Wifi did not start");
+            return Err("Wifi did not start".into());
         }
 
         info!("Connecting wifi...");
 
-        self.wifi.connect()?;
+        match self.wifi.connect(){
+            Ok(_) => {
+                info!("Connected to wifi");
+            },
+            Err(_) => {
+                // info!("Error connecting to wifi: {}", e);
+                return Err("Error connecting to wifi".into());
+            }
+        };
 
-        if !EspNetifWait::new::<EspNetif>(self.wifi.sta_netif(), &self.event_loop)?
+        if !EspNetifWait::new::<EspNetif>(self.wifi.sta_netif(), &self.event_loop).unwrap()
             .wait_with_timeout(Duration::from_secs(20), || {
                 self.wifi.is_up().unwrap()
                     && self.wifi.sta_netif().get_ip_info().unwrap().ip != Ipv4Addr::new(0, 0, 0, 0)
             })
         {
-            bail!("Wifi did not connect or did not receive a DHCP lease");
+            return Err("Wifi did not connect or did not receive a DHCP lease".into());
         }
 
-        let ip_info = self.wifi.sta_netif().get_ip_info()?;
+        let ip_info = match self.wifi.sta_netif().get_ip_info(){
+            Ok(ip_info) => ip_info,
+            Err(_) => return Err("Could not get IP info".into()),
+        }; 
 
         info!("Wifi DHCP info: {:?}", ip_info);
 
-        ping(ip_info.subnet.gateway)?;
-
-        Ok(ip_info.ip)
+        match ping(ip_info.subnet.gateway){
+            Ok(_) => Ok(ip_info.ip),
+            Err(_) => Err("Ping failed".into())
+        }
     }
 
     pub fn host_as(&mut self, creds: Creds) -> Result<()> {
