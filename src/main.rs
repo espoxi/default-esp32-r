@@ -40,6 +40,7 @@ fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
     esp_idf_sys::link_patches();
 
+    #[cfg(debug_assertions)]
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
