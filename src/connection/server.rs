@@ -20,6 +20,7 @@ macro_rules! handler_bail {
     };
 }
 
+#[macro_export]
 macro_rules! handler_soft_bail {
     ($req:ident;$($t:tt)*) => {
         {
@@ -56,12 +57,14 @@ macro_rules! parse_req_or_fail_with_message {
         match_parsed_json!($req,{
             Ok(parsed) => {
                 info!("parsed body: {:?}", parsed);
-                parsed
+                Ok(parsed)
             }
             Err(err) => {
-                let info = format!($($t)*, err);
-                $req.into_status_response(400)?.write_all(info.as_bytes())?;
-                handler_bail!("{}", info)
+                // let info = format!($($t)*, err);
+                // $req.into_status_response(400)?.write_all(info.as_bytes())?;
+                // handler_bail!("{}", info)
+                // $req.into_status_response(400);
+                Err(err)
             }
         })
     };
@@ -112,7 +115,7 @@ macro_rules! send_creds_on_route_as_event {
         add_new_route(
             $server,
             RouteData::new($url, Method::Post, move |mut req| {
-                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
+                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}").unwrap();
                 $tx.send(WE($event(creds))).unwrap();
                 req.into_ok_response().unwrap();
                 Ok(())

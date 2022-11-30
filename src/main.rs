@@ -29,8 +29,8 @@ use esp_idf_svc::eventloop::*;
 use esp_idf_hal::prelude::*;
 use neopixel::effects::EffectConfig;
 
-use crate::neopixel::NeopixelManager;
 use crate::neopixel::strip::Strip;
+use crate::neopixel::NeopixelManager;
 
 // use esp_idf_sys::{self, c_types};
 
@@ -58,14 +58,17 @@ fn main() -> Result<()> {
     let store = Arc::new(Mutex::new(store::default()));
 
     let max_pixel_count = 500;
-    let nm = Arc::new(NeopixelManager::new(Strip::ws2812b(//XXX: 2812(b?)
+    let nm = Arc::new(NeopixelManager::new(Strip::ws2812b(
+        //XXX: 2812(b?)
         pins.gpio14,
         peripherals.rmt.channel1,
         max_pixel_count,
     )));
     nm.run(20);
 
-    if let Ok(Some(ref mut stored_effects)) = store.lock().unwrap().get::<Vec<EffectConfig>>("effects"){
+    if let Ok(Some(ref mut stored_effects)) =
+        store.lock().unwrap().get::<Vec<EffectConfig>>("effects")
+    {
         // info!("Found stored effects: {:?}", stored_effects);
         nm.effects.lock().unwrap().append(stored_effects);
     }
@@ -82,10 +85,18 @@ fn main() -> Result<()> {
 
     let nm3 = nm.clone();
     add_new_route!(add_route_tx; "/effects", Post, move |mut req|{
-        let new_effects : Vec<EffectConfig> = parse_req_or_fail_with_message!(req; "couldn't parse effects.. {}");
-        store.lock().unwrap().set("effects", &new_effects).unwrap();
-        *nm3.effects.lock().unwrap() = new_effects;
-        send_as_json!(req, "ok")
+        match  parse_req_or_fail_with_message!(req; "couldn't parse effects.. {}"){
+            Ok(new_effects) => {
+                store.lock().unwrap().set("effects", &new_effects).unwrap();
+                *nm3.effects.lock().unwrap() = new_effects;
+                send_as_json!(req, "ok")
+            }
+            Err(e) => {
+                let _ = req.into_status_response(400)?.write_all(format!("{}",e).as_bytes());
+                Ok(())//breh
+            }
+        }
+
     });
 
     // let _sntp = sntp::EspSntp::new_default()?;
