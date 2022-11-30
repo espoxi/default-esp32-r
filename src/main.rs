@@ -99,10 +99,10 @@ fn main() -> Result<()> {
 
     loop {
         builtin_led.set_high().unwrap();
-        FreeRtos::delay_ms(500);
+        FreeRtos::delay_ms(50);
 
         builtin_led.set_low().unwrap();
-        FreeRtos::delay_ms(500);
+        FreeRtos::delay_ms(5000);
     }
 }
 
