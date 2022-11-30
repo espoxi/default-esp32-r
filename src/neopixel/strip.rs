@@ -1,14 +1,15 @@
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
-
-use std::{time::Duration, sync::{Arc, Mutex}};
-
+use anyhow::Result;
 use esp_idf_hal::{
     delay::Ets,
     gpio::{OutputPin, Pin},
-    peripheral::{Peripheral},
-    rmt::{config::TransmitConfig, RmtChannel, TxRmtDriver, Pulse, PinState, VariableLengthSignal},
+    peripheral::Peripheral,
+    rmt::{config::TransmitConfig, PinState, Pulse, RmtChannel, TxRmtDriver, VariableLengthSignal},
 };
-use anyhow::{Result};
 
 pub mod color;
 
@@ -38,7 +39,9 @@ impl<'d> Strip<'d> {
         pixel_count: u16,
     ) -> Self {
         let config = TransmitConfig::new().clock_divider(1);
-        let tx = Arc::new(Mutex::new(TxRmtDriver::new(rmt_channel, pin, &config).unwrap()));
+        let tx = Arc::new(Mutex::new(
+            TxRmtDriver::new(rmt_channel, pin, &config).unwrap(),
+        ));
         Self {
             zero_high_ns: 400,
             zero_low_ns: 850,
@@ -56,7 +59,9 @@ impl<'d> Strip<'d> {
         pixel_count: u16,
     ) -> Self {
         let config = TransmitConfig::new().clock_divider(1);
-        let tx = Arc::new(Mutex::new(TxRmtDriver::new(rmt_channel, pin, &config).unwrap()));
+        let tx = Arc::new(Mutex::new(
+            TxRmtDriver::new(rmt_channel, pin, &config).unwrap(),
+        ));
         Self {
             zero_high_ns: 350,
             zero_low_ns: 800,
@@ -80,7 +85,9 @@ impl<'d> Strip<'d> {
         reset_ns: u16,
     ) -> Self {
         let config = TransmitConfig::new().clock_divider(1);
-        let tx = Arc::new(Mutex::new(TxRmtDriver::new(rmt_channel, pin, &config).unwrap()));
+        let tx = Arc::new(Mutex::new(
+            TxRmtDriver::new(rmt_channel, pin, &config).unwrap(),
+        ));
         Self {
             zero_high_ns,
             zero_low_ns,
@@ -93,7 +100,7 @@ impl<'d> Strip<'d> {
         }
     }
 
-    pub fn send_colors(&self, colors: &[color::Color])-> Result<()> {
+    pub fn send_colors(&self, colors: &[color::Color]) -> Result<()> {
         let ticks_hz = self.rmt.lock().unwrap().counter_clock()?;
         let t0h = Pulse::new_with_duration(ticks_hz, PinState::High, &ns(self.zero_high_ns))?;
         let t0l = Pulse::new_with_duration(ticks_hz, PinState::Low, &ns(self.zero_low_ns))?;
@@ -101,15 +108,18 @@ impl<'d> Strip<'d> {
         let t1l = Pulse::new_with_duration(ticks_hz, PinState::Low, &ns(self.one_low_ns))?;
         drop(ticks_hz);
 
-        let mut signal = VariableLengthSignal::with_capacity(24*colors.len());
+        let mut signal = VariableLengthSignal::with_capacity(24 * colors.len());
         for color in colors {
             // for bit in color.to_bit_iter(self.led_color_order) {
             //     let (high_pulse, low_pulse) = if bit { (t1h, t1l) } else { (t0h, t0l) };
             //     signal.push(&(high_pulse, low_pulse))?;
             // }
-            signal.push(color.to_bit_iter(&self.led_color_order).map(|bit|{
-                if bit {[&t1h, &t1l]}  else {[&t0h, &t0l]}
-            }).flatten())?;
+            signal.push(
+                color
+                    .to_bit_iter(&self.led_color_order)
+                    .map(|bit| if bit { [&t1h, &t1l] } else { [&t0h, &t0l] })
+                    .flatten(),
+            )?;
         }
         // println!("colors: {:?}", colors);
         self.rmt.clone().lock().unwrap().start(signal)?;

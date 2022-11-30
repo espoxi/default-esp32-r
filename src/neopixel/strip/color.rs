@@ -21,7 +21,7 @@ macro_rules! fmax {
     ($x: expr, $($z: expr),+) => ($x.max(fmax!($($z),*)));
 }
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::LedColorOrder;
 

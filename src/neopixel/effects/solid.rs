@@ -1,11 +1,10 @@
-use std::{time::Duration, ops::Range};
+use std::{ops::Range, time::Duration};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::neopixel::strip::color::Color;
 
 use super::Effect;
-
 
 pub struct SolidColorEffect;
 
@@ -26,7 +25,7 @@ impl Default for SolidColorConfig {
 
 impl Effect for SolidColorEffect {
     type Config = SolidColorConfig;
-    fn apply(config: &Self::Config,  colors: &mut Vec<Color>, _:Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration) -> anyhow::Result<()> {
         for i in config.range.clone() {
             (colors[i as usize]) = config.color;
         }

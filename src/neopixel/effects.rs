@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::strip::color::Color;
 
 pub mod hue;
+pub mod invert;
 pub mod solid;
 pub mod strobo;
-pub mod invert;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EffectConfig {
@@ -17,12 +17,16 @@ pub enum EffectConfig {
     Strobo(strobo::StroboConfig),
 }
 
-pub trait Effect<>{
+pub trait Effect {
     type Config: Default;
-    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()>;
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t: Duration) -> anyhow::Result<()>;
 }
 
-pub fn apply_effects(effects: &Vec<EffectConfig>, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()> {
+pub fn apply_effects(
+    effects: &Vec<EffectConfig>,
+    colors: &mut Vec<Color>,
+    t: Duration,
+) -> anyhow::Result<()> {
     for effect in effects {
         match effect {
             EffectConfig::HueShift(config) => hue::HueShiftEffect::apply(config, colors, t)?,

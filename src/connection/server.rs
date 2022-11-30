@@ -1,13 +1,13 @@
 use std::net::Ipv4Addr;
-use std::sync::{Mutex, Arc};
-use std::sync::mpsc::{Sender};
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Result};
 
 use embedded_svc::http::server::{HandlerError, Method, Request};
 use embedded_svc::io::{Read, Write};
 use esp_idf_svc::http::server::EspHttpConnection;
-use log::{info};
+use log::info;
 use serde::de;
 
 #[allow(unused_imports)]
@@ -30,13 +30,19 @@ macro_rules! handler_soft_bail {
     };
 }
 
-
 #[macro_export]
 macro_rules! send_as_json {
     ($req:ident, $e:expr) => {
-        match serde_json::to_vec(&$e){
-            Ok(ref b) => {$req.into_ok_response()?.write_all(b)?;Ok(())},
-            Err(e) => {$req.into_status_response(500)?.write_all(e.to_string().as_bytes())?;handler_bail!("whoppa: {:?}", e)},
+        match serde_json::to_vec(&$e) {
+            Ok(ref b) => {
+                $req.into_ok_response()?.write_all(b)?;
+                Ok(())
+            }
+            Err(e) => {
+                $req.into_status_response(500)?
+                    .write_all(e.to_string().as_bytes())?;
+                handler_bail!("whoppa: {:?}", e)
+            }
         }
     };
 }
@@ -53,18 +59,18 @@ macro_rules! match_parsed_json {
 
 #[macro_export]
 macro_rules! parse_req_or_fail_with_message {
-    ($req:expr; $($t:tt)*) => {
+    ($req:ident; $($t:tt)*) => {
         match_parsed_json!($req,{
             Ok(parsed) => {
                 info!("parsed body: {:?}", parsed);
-                Ok(parsed)
+                parsed
             }
             Err(err) => {
                 // let info = format!($($t)*, err);
                 // $req.into_status_response(400)?.write_all(info.as_bytes())?;
                 // handler_bail!("{}", info)
                 // $req.into_status_response(400);
-                Err(err)
+                handler_soft_bail!($req; $($t)*, err)
             }
         })
     };
@@ -75,13 +81,13 @@ pub const BODY_BUFFER_SIZE: u16 = 1024;
 pub fn parse_req_json_to<'a, T>(
     r: &mut Request<&mut EspHttpConnection>,
     buf: &'a mut [u8],
-) -> Result<T,serde_json::Error>
+) -> Result<T, serde_json::Error>
 where
     T: de::Deserialize<'a> + Clone,
 {
     let len = r.read(buf).unwrap();
     info!("parsing body...\n{}", show(&buf[0..len]));
-    serde_json::from_slice::<T>(&buf[0..len]) 
+    serde_json::from_slice::<T>(&buf[0..len])
 }
 use std::ascii::escape_default;
 use std::str;
@@ -115,9 +121,9 @@ macro_rules! send_creds_on_route_as_event {
         add_new_route(
             $server,
             RouteData::new($url, Method::Post, move |mut req| {
-                let creds:Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}").unwrap();
+                let creds : Creds = parse_req_or_fail_with_message!(req;"failed parsing creds: {}");
                 $tx.send(WE($event(creds))).unwrap();
-                req.into_ok_response().unwrap();
+                // req.into_ok_response().unwrap();
                 Ok(())
             }),
         )
@@ -129,23 +135,21 @@ pub(super) fn add_connect_route(
     tx: Sender<super::ConnectionRelevantEvent>,
     ip: Arc<Mutex<Option<Ipv4Addr>>>,
 ) -> Result<()> {
-    if let Err(e) = send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi){
+    if let Err(e) = send_creds_on_route_as_event!(server, tx, "/connect", ConnectToWifi) {
         panic!("failed adding connect route: {}", e);
     };
     add_new_route(
         server,
         RouteData::new("/ip", Method::Get, move |req| {
-            let _ :Result<(),HandlerError> = match ip.lock(){
-                Ok(ip) => {
-                    match ip.as_ref(){
-                        Some(ip) => {
-                            send_as_json!(req, ip)
-                        }
-                        None => {
-                            handler_soft_bail!(req;"no ip");
-                        }
+            let _: Result<(), HandlerError> = match ip.lock() {
+                Ok(ip) => match ip.as_ref() {
+                    Some(ip) => {
+                        send_as_json!(req, ip)
                     }
-                }
+                    None => {
+                        handler_soft_bail!(req;"no ip");
+                    }
+                },
                 Err(e) => {
                     handler_soft_bail!(req;"failed to lock ip: {:?}", e)
                 }

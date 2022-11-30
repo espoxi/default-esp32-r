@@ -7,7 +7,6 @@ use std::{
 use anyhow::Result;
 use log::{error, info};
 
-
 #[allow(dead_code)]
 pub fn test_tcp() -> Result<()> {
     info!("About to open a TCP connection to 1.1.1.1 port 80");

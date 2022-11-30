@@ -1,11 +1,10 @@
-use std::{time::Duration, ops::Range};
+use std::{ops::Range, time::Duration};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::neopixel::strip::color::Color;
 
 use super::Effect;
-
 
 pub struct InversionEffect;
 
@@ -16,18 +15,16 @@ pub struct InversionConfig {
 
 impl Default for InversionConfig {
     fn default() -> Self {
-        Self {
-            range: 0..30,
-        }
+        Self { range: 0..30 }
     }
 }
 
 #[allow(unused_variables)]
 impl Effect for InversionEffect {
     type Config = InversionConfig;
-    fn apply(config: &Self::Config,  colors: &mut Vec<Color>, _:Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration) -> anyhow::Result<()> {
         for i in config.range.clone() {
-            (colors[i as usize]) = Color::white()-colors[i as usize];
+            (colors[i as usize]) = Color::white() - colors[i as usize];
         }
         Ok(())
     }

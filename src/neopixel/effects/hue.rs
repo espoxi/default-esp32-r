@@ -1,11 +1,10 @@
-use std::{time::Duration, ops::Range};
+use std::{ops::Range, time::Duration};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::neopixel::strip::color::Color;
 
 use super::Effect;
-
 
 pub struct HueShiftEffect;
 
@@ -28,11 +27,12 @@ impl Default for HueShiftConfig {
 
 impl Effect for HueShiftEffect {
     type Config = HueShiftConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t:Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t: Duration) -> anyhow::Result<()> {
         for i in config.range.clone() {
-            (colors[i as usize]).shift_hue_deg(config.degrees_per_second * t.as_secs_f32() + config.degrees_per_led * i as f32);
+            (colors[i as usize]).shift_hue_deg(
+                config.degrees_per_second * t.as_secs_f32() + config.degrees_per_led * i as f32,
+            );
         }
         Ok(())
     }
 }
-
