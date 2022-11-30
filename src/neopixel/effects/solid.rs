@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{time::Duration, ops::Range};
 
 use serde::{Serialize, Deserialize};
 
@@ -12,12 +12,14 @@ pub struct SolidColorEffect;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolidColorConfig {
     pub color: Color,
+    pub range: Range<u16>,
 }
 
 impl Default for SolidColorConfig {
     fn default() -> Self {
         Self {
             color: Color::black(),
+            range: 0..30,
         }
     }
 }
@@ -25,8 +27,7 @@ impl Default for SolidColorConfig {
 impl Effect for SolidColorEffect {
     type Config = SolidColorConfig;
     fn apply(config: &Self::Config,  colors: &mut Vec<Color>, _:Duration) -> anyhow::Result<()> {
-        let size = colors.len();
-        for i in 0..size {
+        for i in config.range.clone() {
             (colors[i as usize]) = config.color;
         }
         Ok(())

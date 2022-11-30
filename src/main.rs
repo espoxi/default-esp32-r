@@ -57,11 +57,11 @@ fn main() -> Result<()> {
     let sysloop = EspSystemEventLoop::take()?;
     let store = Arc::new(Mutex::new(store::default()));
 
-    let pixel_count = 30;
+    let max_pixel_count = 500;
     let nm = Arc::new(NeopixelManager::new(Strip::ws2812b(//XXX: 2812(b?)
         pins.gpio14,
         peripherals.rmt.channel1,
-        pixel_count,
+        max_pixel_count,
     )));
     nm.run(20);
 
