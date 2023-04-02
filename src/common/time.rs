@@ -2,26 +2,12 @@ use esp_idf_svc::sntp;
 
 pub trait TimeProvider {
     fn now(&self) -> Option<std::time::Duration>;
+    fn new() -> Self;
 }
 
 pub struct ESP_NTPC {
     pub sntp: sntp::EspSntp,
     // conf : sntp::SntpConf,
-}
-
-impl ESP_NTPC {
-    fn new() -> Self {
-        let conf = sntp::SntpConf {
-            servers: [
-                "2.de.pool.ntp.org",
-            ],
-            ..Default::default()
-        };
-        let sntp = sntp::EspSntp::new(&conf).unwrap();
-        Self {
-            sntp,
-        }
-    }
 }
 
 impl TimeProvider for ESP_NTPC {
@@ -40,5 +26,31 @@ impl TimeProvider for ESP_NTPC {
         //     None
         // }
         None // TODO
+    }
+    fn new() -> Self {
+        let conf = sntp::SntpConf {
+            servers: [
+                "2.de.pool.ntp.org",
+            ],
+            ..Default::default()
+        };
+        let sntp = sntp::EspSntp::new(&conf).unwrap();
+        Self {
+            sntp,
+        }
+    }
+}
+
+pub struct ESP_RTC {
+   
+}
+
+impl TimeProvider for ESP_RTC {
+    fn new() -> Self {
+        Self {
+        }
+    }
+    fn now(&self) -> Option<std::time::Duration> {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok()
     }
 }

@@ -7,7 +7,7 @@ mod demos;
 mod neopixel;
 mod store;
 mod common;
-use common::time::ESP_NTPC;
+use common::time;
 
 #[allow(unused_imports)]
 use std::sync::{Condvar, Mutex};
@@ -31,6 +31,7 @@ use esp_idf_svc::eventloop::*;
 use esp_idf_hal::prelude::*;
 use neopixel::effects::EffectConfig;
 
+use crate::common::time::TimeProvider;
 use crate::neopixel::strip::Strip;
 use crate::neopixel::NeopixelManager;
 
@@ -104,11 +105,15 @@ fn main() -> Result<()> {
 
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 
+    let t = time::ESP_RTC::new();
     loop {
         builtin_led.set_high().unwrap();
         FreeRtos::delay_ms(50);
 
         builtin_led.set_low().unwrap();
+        if let Some(ms) = t.now() {
+            println!("time: {:?}", ms);
+        }
         FreeRtos::delay_ms(5000);
     }
 }
