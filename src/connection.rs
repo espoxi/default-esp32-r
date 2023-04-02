@@ -69,7 +69,22 @@ pub fn init(
 
         let ssstore = sstore.lock().unwrap();
 
-        let starthost = || {
+        info!("Connecting to stored wifi...");
+        let should_start_host = if let Ok(Some(creds)) = ssstore.get("client_creds") {
+            match wifi.connect_to(creds) {
+                Err(e) => {
+                    warn!("Failed to connect to stored wifi: {}", e);
+                    true
+                }
+                Ok(_) => {
+                    info!("Connected to stored wifi");
+                    false
+                }
+            }
+        } else {
+            true
+        };
+        if should_start_host {
             info!("No stored wifi credentials, we will start our own access point");
             match wifi.host_as(match ssstore.get("ap_creds") {
                 Ok(Some(creds)) => creds,
@@ -81,19 +96,6 @@ pub fn init(
                 Ok(_) => info!("Wifi started as host"),
                 Err(e) => warn!("Wifi hosting failed: {}", e),
             };
-        };
-
-        info!("Connecting to stored wifi...");
-        if let Ok(Some(creds)) = ssstore.get("client_creds") {
-            match wifi.connect_to(creds) {
-                Err(e) => {
-                    warn!("Failed to connect to stored wifi: {}", e);
-                    starthost();
-                }
-                Ok(_) => info!("Connected to stored wifi"),
-            };
-        } else {
-            starthost();
         }
         drop(ssstore);
 
