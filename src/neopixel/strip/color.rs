@@ -289,9 +289,9 @@ impl ops::Sub<Color> for Color {
 
     fn sub(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red - _rhs.red).rem_euclid(1.0),
-            green: (self.green - _rhs.green).rem_euclid(1.0),
-            blue: (self.blue - _rhs.blue).rem_euclid(1.0),
+            red: (self.red - _rhs.red).rem_euclid(1.0000001),
+            green: (self.green - _rhs.green).rem_euclid(1.0000001),
+            blue: (self.blue - _rhs.blue).rem_euclid(1.0000001),
         }
     }
 }

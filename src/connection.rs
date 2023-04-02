@@ -70,12 +70,21 @@ pub fn init(
         let ssstore = sstore.lock().unwrap();
 
         info!("Connecting to stored wifi...");
-        if let Ok(Some(creds)) = ssstore.get("client_creds") {
+        let should_start_host = if let Ok(Some(creds)) = ssstore.get("client_creds") {
             match wifi.connect_to(creds) {
-                Err(e) => warn!("Failed to connect to stored wifi: {}", e),
-                Ok(_) => info!("Connected to stored wifi"),
-            };
+                Err(e) => {
+                    warn!("Failed to connect to stored wifi: {}", e);
+                    true
+                }
+                Ok(_) => {
+                    info!("Connected to stored wifi");
+                    false
+                }
+            }
         } else {
+            true
+        };
+        if should_start_host {
             info!("No stored wifi credentials, we will start our own access point");
             match wifi.host_as(match ssstore.get("ap_creds") {
                 Ok(Some(creds)) => creds,
