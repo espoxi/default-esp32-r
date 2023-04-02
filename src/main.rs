@@ -6,6 +6,8 @@ mod connection;
 mod demos;
 mod neopixel;
 mod store;
+mod common;
+use common::time::ESP_NTPC;
 
 #[allow(unused_imports)]
 use std::sync::{Condvar, Mutex};
