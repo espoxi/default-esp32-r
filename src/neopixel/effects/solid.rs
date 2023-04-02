@@ -25,7 +25,7 @@ impl Default for SolidColorConfig {
 
 impl Effect for SolidColorEffect {
     type Config = SolidColorConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration, _ : Option<Duration>) -> anyhow::Result<()> {
         for i in config.range.clone() {
             (colors[i as usize]) = config.color;
         }

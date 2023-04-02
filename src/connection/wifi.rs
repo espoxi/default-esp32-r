@@ -153,7 +153,7 @@ impl Wlan {
 
         info!("Wifi DHCP info: {:?}", ip_info);
 
-        ping(ip_info.subnet.gateway)?;
+        // ping(ip_info.subnet.gateway)?;
 
         Ok(ip_info.ip)
     }

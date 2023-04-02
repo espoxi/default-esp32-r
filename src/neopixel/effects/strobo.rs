@@ -28,7 +28,8 @@ impl Default for StroboConfig {
 
 impl Effect for StroboEffect {
     type Config = StroboConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<Color>, t: Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, dt: Duration, rt : Option<Duration>) -> anyhow::Result<()> {
+        let t = dt;
         match t.as_secs_f32() % (1.0 / config.frequency_hz) {
             t if t < 0.2 && t > 0.1 => {
                 SolidColorEffect::apply(
@@ -38,6 +39,7 @@ impl Effect for StroboEffect {
                     },
                     colors,
                     Duration::from_secs_f32(t),
+                    rt,
                 )?;
             }
             t if t < 0.4 => {
@@ -48,6 +50,7 @@ impl Effect for StroboEffect {
                     },
                     colors,
                     Duration::from_secs_f32(t),
+                    rt,
                 )?;
             }
             _ => {

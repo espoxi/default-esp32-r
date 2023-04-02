@@ -22,7 +22,7 @@ impl Default for InversionConfig {
 #[allow(unused_variables)]
 impl Effect for InversionEffect {
     type Config = InversionConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration, _:Option<Duration>) -> anyhow::Result<()> {
         for i in config.range.clone() {
             (colors[i as usize]) = Color::white() - colors[i as usize];
         }

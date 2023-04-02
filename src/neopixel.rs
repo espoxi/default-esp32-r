@@ -5,6 +5,9 @@ use std::{
 };
 
 use esp_idf_hal::delay::FreeRtos;
+use esp_idf_svc::timer::{self, EspTimer};
+
+use crate::common::time::{self, TimeProvider};
 
 use self::{
     effects::EffectConfig,
@@ -35,7 +38,7 @@ impl NeopixelManager<'static> {
     }
 
     ///mspf = milliseconds per frame = 1000 / fps
-    pub fn run(&self, mspf: u32) -> &Self {
+    pub fn run(&self, mspf: u32, /*timer : &'static(dyn TimeProvider +Sync)*/ timer : Box<dyn TimeProvider + Send>) -> &Self {
         let ccolors = self.colors.clone();
         let sstrip = self.strip.clone();
         let eeffects = self.effects.clone();
@@ -44,7 +47,7 @@ impl NeopixelManager<'static> {
             loop {
                 let effects = eeffects.lock().unwrap();
                 let mut colors = ccolors.lock().unwrap();
-                effects::apply_effects(&effects, &mut colors, Instant::now() - s).unwrap();
+                effects::apply_effects(&effects, &mut colors, Instant::now() - s, timer.now()).unwrap();
                 // println!("applied effects effects: {:?}", effects);
                 drop(effects);
                 sstrip.send_colors(&colors).unwrap();

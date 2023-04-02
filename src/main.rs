@@ -67,7 +67,9 @@ fn main() -> Result<()> {
         peripherals.rmt.channel1,
         max_pixel_count,
     )));
-    nm.run(20);
+    let timer = time::ESP_NTPC::new();
+    let btimer = Box::new(timer);
+    nm.run(20, btimer.clone());
 
     if let Ok(Some(ref mut stored_effects)) =
         store.lock().unwrap().get::<Vec<EffectConfig>>("effects")
@@ -105,13 +107,12 @@ fn main() -> Result<()> {
 
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 
-    let t = time::ESP_RTC::new();
     loop {
         builtin_led.set_high().unwrap();
         FreeRtos::delay_ms(50);
 
         builtin_led.set_low().unwrap();
-        if let Some(ms) = t.now() {
+        if let Some(ms) = btimer.now() {
             println!("time: {:?}", ms);
         }
         FreeRtos::delay_ms(5000);
