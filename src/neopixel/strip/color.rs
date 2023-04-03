@@ -26,14 +26,14 @@ use serde::{Deserialize, Serialize};
 use super::LedColorOrder;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Color {
+pub struct FColor {
     pub red: f32,
     pub green: f32,
     pub blue: f32,
 }
 
 #[allow(dead_code)]
-impl Color {
+impl FColor {
     pub fn from_u8(red: u8, green: u8, blue: u8) -> Self {
         Self {
             red: red as f32 / 255.0,
@@ -250,7 +250,7 @@ impl Hsv {
             value,
         }
     }
-    pub fn to_rgb(&self) -> Color {
+    pub fn to_rgb(&self) -> FColor {
         let h = self.hue.rem_euclid(360.0);
         let s = self.saturation.min(1.0).max(0.0);
         let v = self.value.min(1.0).max(0.0);
@@ -268,15 +268,15 @@ impl Hsv {
             _ => (c, 0.0, x),
         };
 
-        Color::new(r + m, g + m, b + m)
+        FColor::new(r + m, g + m, b + m)
     }
 }
 
-impl ops::Add<Color> for Color {
-    type Output = Color;
+impl ops::Add<FColor> for FColor {
+    type Output = FColor;
 
-    fn add(self, _rhs: Color) -> Color {
-        Color {
+    fn add(self, _rhs: FColor) -> FColor {
+        FColor {
             red: (self.red + _rhs.red).rem_euclid(1.0),
             green: (self.green + _rhs.green).rem_euclid(1.0),
             blue: (self.blue + _rhs.blue).rem_euclid(1.0),
@@ -284,11 +284,11 @@ impl ops::Add<Color> for Color {
     }
 }
 
-impl ops::Sub<Color> for Color {
-    type Output = Color;
+impl ops::Sub<FColor> for FColor {
+    type Output = FColor;
 
-    fn sub(self, _rhs: Color) -> Color {
-        Color {
+    fn sub(self, _rhs: FColor) -> FColor {
+        FColor {
             red: (self.red - _rhs.red).rem_euclid(1.0000001),
             green: (self.green - _rhs.green).rem_euclid(1.0000001),
             blue: (self.blue - _rhs.blue).rem_euclid(1.0000001),
@@ -296,11 +296,11 @@ impl ops::Sub<Color> for Color {
     }
 }
 
-impl ops::Mul<Color> for Color {
-    type Output = Color;
+impl ops::Mul<FColor> for FColor {
+    type Output = FColor;
 
-    fn mul(self, _rhs: Color) -> Color {
-        Color {
+    fn mul(self, _rhs: FColor) -> FColor {
+        FColor {
             red: (self.red * _rhs.red).max(0.0).min(1.0),
             green: (self.green * _rhs.green).max(0.0).min(1.0),
             blue: (self.blue * _rhs.blue).max(0.0).min(1.0),
@@ -308,11 +308,11 @@ impl ops::Mul<Color> for Color {
     }
 }
 
-impl ops::Mul<f32> for Color {
-    type Output = Color;
+impl ops::Mul<f32> for FColor {
+    type Output = FColor;
 
-    fn mul(self, _rhs: f32) -> Color {
-        Color {
+    fn mul(self, _rhs: f32) -> FColor {
+        FColor {
             red: (self.red * _rhs).max(0.0).min(1.0),
             green: (self.green * _rhs).max(0.0).min(1.0),
             blue: (self.blue * _rhs).max(0.0).min(1.0),

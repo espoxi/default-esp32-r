@@ -3,7 +3,7 @@ use std::{ops::Range, time::Duration};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSeconds};
 
-use crate::neopixel::strip::color::Color;
+use crate::neopixel::strip::color::FColor;
 
 use super::{hue::HueShiftEffect, solid::SolidColorEffect, strobo::StroboEffect, Effect};
 
@@ -39,7 +39,7 @@ impl Effect for AlarmEffect {
     type Config = AlarmConfig;
     fn apply(
         config: &Self::Config,
-        colors: &mut Vec<Color>,
+        colors: &mut Vec<FColor>,
         dt: Duration,
         rt: Option<Duration>,
     ) -> anyhow::Result<()> {
@@ -74,7 +74,7 @@ impl Effect for AlarmEffect {
                         };
                         SolidColorEffect::apply(
                             &super::solid::SolidColorConfig {
-                                color: Color::new(red, green, blue),
+                                color: FColor::new(red, green, blue),
                                 range: config.range.clone(),
                             },
                             colors,
@@ -89,7 +89,7 @@ impl Effect for AlarmEffect {
                             //solid base color for hue-shift to make a rainbow
                             SolidColorEffect::apply(
                                 &super::solid::SolidColorConfig {
-                                    color: Color::red(),
+                                    color: FColor::red(),
                                     range: config.range.clone(),
                                 },
                                 colors,
@@ -111,7 +111,7 @@ impl Effect for AlarmEffect {
                                 //red afterglow in last 3s
                                 SolidColorEffect::apply(
                                     &super::solid::SolidColorConfig {
-                                        color: Color::red(),
+                                        color: FColor::red(),
                                         range: config.range.clone(),
                                     },
                                     colors,
@@ -123,7 +123,7 @@ impl Effect for AlarmEffect {
                                 //blink white
                                 SolidColorEffect::apply(
                                     &super::solid::SolidColorConfig {
-                                        color: Color::white(),
+                                        color: FColor::white(),
                                         range: config.range.clone(),
                                     },
                                     colors,
@@ -134,7 +134,7 @@ impl Effect for AlarmEffect {
                                 //black
                                 SolidColorEffect::apply(
                                     &super::solid::SolidColorConfig {
-                                        color: Color::black(),
+                                        color: FColor::black(),
                                         range: config.range.clone(),
                                     },
                                     colors,
