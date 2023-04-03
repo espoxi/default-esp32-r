@@ -5,7 +5,7 @@ use serde_with::{serde_as, DurationSeconds};
 
 use crate::neopixel::strip::color::Color;
 
-use super::Effect;
+use super::{strobo::StroboEffect, Effect};
 
 pub struct AlarmEffect;
 
@@ -48,8 +48,30 @@ impl Effect for AlarmEffect {
                 //TODO: play actual alarm
                 match config.alarm_type {
                     AlarmType::Sunrise => {}
-                    AlarmType::Silvester => {}
-                    AlarmType::Strobo => {}
+                    AlarmType::Silvester => {
+                        //countdown to 0 ; blink white every second (black in between blinks)
+                        let seconds_to_alarm = (config.at_s_since_1970 - rt).as_secs_f32();
+                        if seconds_to_alarm < 0.0 {
+                            //its time ; friggn party
+                            //TODO
+                        } else {
+                            //TODO: modulo im prinzip wie bei strobo bloß genau 1hz blinken (und bei unter 3s auch noch rot zusätzlich oder so)
+                        }
+                    }
+                    AlarmType::Strobo => {
+                        if rt < config.at_s_since_1970 + Duration::from_secs(30) {
+                            //play strobo for 30s
+                            StroboEffect::apply(
+                                &super::strobo::StroboConfig {
+                                    frequency_hz: 2.0,
+                                    range: config.range.clone(),
+                                },
+                                colors,
+                                dt,
+                                Some(rt),
+                            )?;
+                        }
+                    }
                 }
             }
         }
