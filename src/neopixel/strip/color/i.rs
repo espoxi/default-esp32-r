@@ -118,44 +118,80 @@ impl Color {
     }
 
     /// convert to HSV
-    fn to_hsv(&self) -> Hsv {
-        let r = self.red;
-        let g = self.green;
-        let b = self.blue;
+    //TODO: integer only variant
+    // fn to_hsv(&self) -> Hsv {
+    //     let r = self.red;
+    //     let g = self.green;
+    //     let b = self.blue;
 
-        let max = fmax!(r, g, b);
-        let min = fmin!(r, g, b);
-        let delta = (max - min) as f32;
+    //     let max = fmax!(r, g, b);
+    //     let min = fmin!(r, g, b);
+    //     let delta = (max - min) as f32;
 
-        let hue = if delta == 0.0 {
-            0.0
-        } else if max == r {
-            60.0 * ((g - b) / delta)
-        } else if max == g {
-            60.0 * ((b - r) / delta) + 120f32
-        } else {
-            60.0 * ((r - g) / delta) + 240f32
-        }
-        .rem_euclid(360f32);
+    //     let hue = if delta == 0.0 {
+    //         0.0
+    //     } else if max == r {
+    //         60.0 * ((g - b) / delta)
+    //     } else if max == g {
+    //         60.0 * ((b - r) / delta) + 120f32
+    //     } else {
+    //         60.0 * ((r - g) / delta) + 240f32
+    //     }
+    //     .rem_euclid(360f32);
 
-        let value = max;
+    //     let value = max;
 
-        let saturation = if max <= 0.1 { 0.0 } else { delta / max };
+    //     let saturation = if max <= 0.1 { 0.0 } else { delta / max };
 
-        Hsv {
-            hue: hue,
-            saturation: saturation,
-            value: value,
-        }
+    //     Hsv {
+    //         hue: hue,
+    //         saturation: saturation,
+    //         value: value,
+    //     }
+    // }
+
+        /// convert to fp HSV
+    fn to_fhsv(&self) -> super::f::Hsv {
+        self.to_FColor().to_hsv()
     }
+
+    // /// shift hue
+    // /// hue: f32, range from 0 to 360
+    // pub fn ishift_hue_deg(&mut self, hue: f32) -> &Self {
+    //     let mut hsv = self.to_hsv();
+    //     // print!("rgb: {:?}, \t hsv: {:?}", self, hsv);
+    //     hsv.hue += hue;
+    //     *self = hsv.to_rgb();
+    //     // println!("\t-(hue+{})--> rgb: {:?}, \t hsv: {:?}", hue, self, hsv);
+    //     self
+    // }
+
+    // /// shift saturation
+    // /// saturation: f32, range from -1 to 1
+    // pub fn ishift_saturation(&mut self, percent: f32) -> &Self {
+    //     let mut hsv = self.to_hsv();
+    //     hsv.saturation = (hsv.saturation + percent).max(0.0).min(1.0);
+    //     *self = hsv.to_rgb();
+    //     self
+    // }
+
+    // /// shift value
+    // /// value: f32, range from -1 to 1
+    // pub fn ishift_value(&mut self, percent: f32) -> &Self {
+    //     let mut hsv = self.to_hsv();
+    //     hsv.value = (hsv.value + percent).max(0.0).min(1.0);
+    //     *self = hsv.to_rgb();
+    //     self
+    // }
+
 
     /// shift hue
     /// hue: f32, range from 0 to 360
     pub fn shift_hue_deg(&mut self, hue: f32) -> &Self {
-        let mut hsv = self.to_hsv();
+        let mut hsv = self.to_fhsv();
         // print!("rgb: {:?}, \t hsv: {:?}", self, hsv);
         hsv.hue += hue;
-        *self = hsv.to_rgb();
+        *self = Color::from_FColor(hsv.to_rgb());
         // println!("\t-(hue+{})--> rgb: {:?}, \t hsv: {:?}", hue, self, hsv);
         self
     }
@@ -163,18 +199,18 @@ impl Color {
     /// shift saturation
     /// saturation: f32, range from -1 to 1
     pub fn shift_saturation(&mut self, percent: f32) -> &Self {
-        let mut hsv = self.to_hsv();
+        let mut hsv = self.to_fhsv();
         hsv.saturation = (hsv.saturation + percent).max(0.0).min(1.0);
-        *self = hsv.to_rgb();
+        *self = Color::from_FColor(hsv.to_rgb());
         self
     }
 
     /// shift value
     /// value: f32, range from -1 to 1
     pub fn shift_value(&mut self, percent: f32) -> &Self {
-        let mut hsv = self.to_hsv();
+        let mut hsv = self.to_fhsv();
         hsv.value = (hsv.value + percent).max(0.0).min(1.0);
-        *self = hsv.to_rgb();
+        *self = Color::from_FColor(hsv.to_rgb());
         self
     }
 
@@ -212,13 +248,7 @@ impl Hsv {
             value,
         }
     }
-
-    // intger (u8) only color conversion between RGB and HSV
-    pub fn to_rgb(&self) -> Color {
-
-
-        Color::new(r + m, g + m, b + m)
-    }
+    //TODO: implement same API as f::Hsv but with integers only
 }
 
 impl ops::Add<Color> for Color {

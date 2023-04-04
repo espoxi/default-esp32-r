@@ -126,7 +126,7 @@ impl Color {
     }
 
     /// convert to HSV
-    fn to_hsv(&self) -> Hsv {
+    pub(super) fn to_hsv(&self) -> Hsv {
         let r = self.red;
         let g = self.green;
         let b = self.blue;
@@ -206,10 +206,10 @@ impl Color {
 /// Saturation: 0-1
 /// Value: 0-1
 #[derive(Debug, Copy, Clone, PartialEq)]
-struct Hsv {
-    hue: f32,
-    saturation: f32,
-    value: f32,
+pub(super) struct Hsv {
+    pub hue: f32,
+    pub saturation: f32,
+    pub value: f32,
 }
 
 #[allow(dead_code)]

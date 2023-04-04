@@ -100,7 +100,7 @@ impl<'d> Strip<'d> {
         }
     }
 
-    pub fn send_colors(&self, colors: &[color::f::Color]) -> Result<()> {
+    pub fn send_colors(&self, colors: &[color::default::Color]) -> Result<()> {
         let ticks_hz = self.rmt.lock().unwrap().counter_clock()?;
         let t0h = Pulse::new_with_duration(ticks_hz, PinState::High, &ns(self.zero_high_ns))?;
         let t0l = Pulse::new_with_duration(ticks_hz, PinState::Low, &ns(self.zero_low_ns))?;

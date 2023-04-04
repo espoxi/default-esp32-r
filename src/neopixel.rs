@@ -11,7 +11,7 @@ use crate::common::time::{TimeProvider};
 
 use self::{
     effects::EffectConfig,
-    strip::{color::f::Color, Strip},
+    strip::{color::default::Color, Strip},
 };
 
 pub mod effects;

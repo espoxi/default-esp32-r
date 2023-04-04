@@ -3,7 +3,7 @@ use std::{ops::Range, time::Duration};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationMilliSeconds};
 
-use crate::neopixel::strip::color::f::Color;
+use crate::neopixel::strip::color::default::Color;
 
 use super::{hue::HueShiftEffect, solid::SolidColorEffect, strobo::StroboEffect, Effect};
 

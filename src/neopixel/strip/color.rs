@@ -1,7 +1,8 @@
 
 //XXX: mod i needs some work
-// pub mod i;
+pub mod i;
 pub mod f;
+pub use i as default;
 
 struct ColorBitString {
     color_u32: u32,
