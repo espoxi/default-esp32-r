@@ -2,7 +2,7 @@ use std::{ops::Range, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
-use crate::neopixel::strip::color::FColor;
+use crate::neopixel::strip::color::f::Color;
 
 use super::Effect;
 
@@ -22,9 +22,9 @@ impl Default for InversionConfig {
 #[allow(unused_variables)]
 impl Effect for InversionEffect {
     type Config = InversionConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<FColor>, _: Duration, _:Option<Duration>) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, _: Duration, _:Option<Duration>) -> anyhow::Result<()> {
         for i in config.range.clone() {
-            (colors[i as usize]) = FColor::white() - colors[i as usize];
+            (colors[i as usize]) = Color::white() - colors[i as usize];
         }
         Ok(())
     }

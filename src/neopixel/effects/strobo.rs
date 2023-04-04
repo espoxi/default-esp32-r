@@ -2,7 +2,7 @@ use std::{ops::Range, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
-use crate::neopixel::strip::color::FColor;
+use crate::neopixel::strip::color::f::Color;
 
 use super::{
     solid::{SolidColorConfig, SolidColorEffect},
@@ -28,13 +28,13 @@ impl Default for StroboConfig {
 
 impl Effect for StroboEffect {
     type Config = StroboConfig;
-    fn apply(config: &Self::Config, colors: &mut Vec<FColor>, dt: Duration, rt : Option<Duration>) -> anyhow::Result<()> {
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, dt: Duration, rt : Option<Duration>) -> anyhow::Result<()> {
         let t = dt;
         match t.as_secs_f32() % (1.0 / config.frequency_hz) {
             t if t < 0.2 && t > 0.1 => {
                 SolidColorEffect::apply(
                     &SolidColorConfig {
-                        color: FColor::white(),
+                        color: Color::white(),
                         range: config.range.clone(),
                     },
                     colors,
@@ -45,7 +45,7 @@ impl Effect for StroboEffect {
             t if t < 0.4 => {
                 SolidColorEffect::apply(
                     &SolidColorConfig {
-                        color: FColor::black(),
+                        color: Color::black(),
                         range: config.range.clone(),
                     },
                     colors,

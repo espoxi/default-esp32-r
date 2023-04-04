@@ -3,7 +3,7 @@ use std::{ops::Range, time::Duration};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationMilliSeconds};
 
-use crate::neopixel::strip::color::FColor;
+use crate::neopixel::strip::color::f::Color;
 
 use super::{hue::HueShiftEffect, solid::SolidColorEffect, strobo::StroboEffect, Effect};
 
@@ -39,7 +39,7 @@ impl Effect for AlarmEffect {
     type Config = AlarmConfig;
     fn apply(
         config: &Self::Config,
-        colors: &mut Vec<FColor>,
+        colors: &mut Vec<Color>,
         dt: Duration,
         rt: Option<Duration>,
     ) -> anyhow::Result<()> {
@@ -74,7 +74,7 @@ impl Effect for AlarmEffect {
                         };
                         SolidColorEffect::apply(
                             &super::solid::SolidColorConfig {
-                                color: FColor::new(red, green, blue),
+                                color: Color::new(red, green, blue),
                                 range: config.range.clone(),
                             },
                             colors,
@@ -89,7 +89,7 @@ impl Effect for AlarmEffect {
                             //solid base color for hue-shift to make a rainbow
                             SolidColorEffect::apply(
                                 &super::solid::SolidColorConfig {
-                                    color: FColor::red(),
+                                    color: Color::red(),
                                     range: config.range.clone(),
                                 },
                                 colors,
@@ -110,12 +110,12 @@ impl Effect for AlarmEffect {
                             SolidColorEffect::apply(
                                 &super::solid::SolidColorConfig {
                                     color: if seconds_to_alarm % 1.0 < 0.2 {
-                                        FColor::white()
+                                        Color::white()
                                     } else if seconds_to_alarm < 3.0 && seconds_to_alarm % 1.0 < 0.4
                                     {
-                                        FColor::red()
+                                        Color::red()
                                     } else {
-                                        FColor::black()
+                                        Color::black()
                                     },
                                     range: config.range.clone(),
                                 },

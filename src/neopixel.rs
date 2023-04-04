@@ -11,7 +11,7 @@ use crate::common::time::{TimeProvider};
 
 use self::{
     effects::EffectConfig,
-    strip::{color::FColor, Strip},
+    strip::{color::f::Color, Strip},
 };
 
 pub mod effects;
@@ -21,14 +21,14 @@ pub mod strip;
 
 pub struct NeopixelManager<'a> {
     strip: Arc<strip::Strip<'a>>,
-    colors: Arc<Mutex<Vec<FColor>>>,
+    colors: Arc<Mutex<Vec<Color>>>,
     pub effects: Arc<Mutex<Vec<EffectConfig>>>,
 }
 
 impl NeopixelManager<'static> {
     pub fn new(strip: Strip<'static>) -> Self {
         let strip = Arc::new(strip);
-        let colors = Arc::new(Mutex::new(vec![FColor::black(); strip.led_count as usize]));
+        let colors = Arc::new(Mutex::new(vec![Color::black(); strip.led_count as usize]));
         let effects = Arc::new(Mutex::new(Vec::new()));
         Self {
             strip,

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use super::strip::color::FColor;
+use super::strip::color::f::Color;
 
 pub mod hue;
 pub mod invert;
@@ -21,12 +21,12 @@ pub enum EffectConfig {
 
 pub trait Effect {
     type Config: Default;
-    fn apply(config: &Self::Config, colors: &mut Vec<FColor>, dt: Duration, rt: Option<Duration>) -> anyhow::Result<()>;
+    fn apply(config: &Self::Config, colors: &mut Vec<Color>, dt: Duration, rt: Option<Duration>) -> anyhow::Result<()>;
 }
 
 pub fn apply_effects(
     effects: &Vec<EffectConfig>,
-    colors: &mut Vec<FColor>,
+    colors: &mut Vec<Color>,
     dt: Duration,
     rt: Option<Duration>,
 ) -> anyhow::Result<()> {
