@@ -40,7 +40,7 @@ use crate::neopixel::NeopixelManager;
 // static store:store::DStore = store::default();
 
 fn main() -> Result<()> {
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
     esp_idf_sys::link_patches();
 
     #[cfg(debug_assertions)]

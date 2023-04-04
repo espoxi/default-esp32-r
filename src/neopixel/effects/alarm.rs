@@ -47,7 +47,7 @@ impl Effect for AlarmEffect {
             if rt > config.at_ms_since_1970 {
                 //TODO: play actual alarm
 
-                let seconds_to_alarm = (config.at_ms_since_1970 - rt).as_secs_f32();
+                let seconds_to_alarm = config.at_ms_since_1970.as_secs_f32() - rt.as_secs_f32();
                 match config.alarm_type {
                     AlarmType::Sunrise => {
                         //fade in red color from 30s to 10s before alarm
