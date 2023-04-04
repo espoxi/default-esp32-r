@@ -5,13 +5,13 @@ pub trait TimeProvider {
     fn clone(&self) -> Box<dyn TimeProvider + Send>;
 }
 
-pub struct ESP_NTPC {
+pub struct EspNTPC {
     pub sntp: sntp::EspSntp,
     // conf : sntp::SntpConf,
     timer: systime::EspSystemTime,
 }
 
-impl ESP_NTPC {
+impl EspNTPC {
     pub fn new() -> Self {
         let conf = sntp::SntpConf {
             servers: ["2.de.pool.ntp.org"],
@@ -23,9 +23,9 @@ impl ESP_NTPC {
     }
 }
 
-impl TimeProvider for ESP_NTPC {
+impl TimeProvider for EspNTPC {
     fn now(&self) -> Option<std::time::Duration> {
-        let status = self.sntp.get_sync_status();
+        // let status = self.sntp.get_sync_status();
         // if status == sntp::SyncStatus::SntpSynced {
         //     let mut tv = esp_idf_sys::timeval {
         //         tv_sec: 0,

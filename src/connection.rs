@@ -165,6 +165,7 @@ pub enum ConnectionEvent {
     HostAs(Creds),
 }
 
+#[allow(dead_code)]
 pub fn ping(ip: ipv4::Ipv4Addr) -> Result<()> {
     info!("About to do some pings for {:?}", ip);
 

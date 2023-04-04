@@ -5,9 +5,9 @@ use std::{
 };
 
 use esp_idf_hal::delay::FreeRtos;
-use esp_idf_svc::timer::{self, EspTimer};
+// use esp_idf_svc::timer::{self, EspTimer};
 
-use crate::common::time::{self, TimeProvider};
+use crate::common::time::{TimeProvider};
 
 use self::{
     effects::EffectConfig,
@@ -33,7 +33,7 @@ impl NeopixelManager<'static> {
         Self {
             strip,
             colors,
-            effects,
+            effects, 
         }
     }
 

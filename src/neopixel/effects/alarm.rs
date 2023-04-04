@@ -13,7 +13,7 @@ pub struct AlarmEffect;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlarmConfig {
     #[serde_as(as = "DurationMilliSeconds<u64>")]
-    pub at_s_since_1970: Duration,
+    pub at_ms_since_1970: Duration,
     pub alarm_type: AlarmType,
     pub range: Range<u16>,
 }
@@ -21,7 +21,7 @@ pub struct AlarmConfig {
 impl Default for AlarmConfig {
     fn default() -> Self {
         Self {
-            at_s_since_1970: Duration::from_secs(2680471881),
+            at_ms_since_1970: Duration::from_secs(2680471881),
             alarm_type: AlarmType::Sunrise,
             range: 0..30,
         }
@@ -44,10 +44,10 @@ impl Effect for AlarmEffect {
         rt: Option<Duration>,
     ) -> anyhow::Result<()> {
         if let Some(rt) = rt {
-            if rt > config.at_s_since_1970 {
+            if rt > config.at_ms_since_1970 {
                 //TODO: play actual alarm
 
-                let seconds_to_alarm = (config.at_s_since_1970 - rt).as_secs_f32();
+                let seconds_to_alarm = (config.at_ms_since_1970 - rt).as_secs_f32();
                 match config.alarm_type {
                     AlarmType::Sunrise => {
                         //fade in red color from 30s to 10s before alarm
@@ -145,7 +145,7 @@ impl Effect for AlarmEffect {
                         }
                     }
                     AlarmType::Strobo => {
-                        if rt < config.at_s_since_1970 + Duration::from_secs(30) {
+                        if rt < config.at_ms_since_1970 + Duration::from_secs(30) {
                             //play strobo for 30s
                             StroboEffect::apply(
                                 &super::strobo::StroboConfig {

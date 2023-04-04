@@ -2,11 +2,11 @@
 #![allow(clippy::single_component_path_imports)]
 //#![feature(backtrace)]
 
+mod common;
 mod connection;
 mod demos;
 mod neopixel;
 mod store;
-mod common;
 use common::time;
 
 #[allow(unused_imports)]
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
         peripherals.rmt.channel1,
         max_pixel_count,
     )));
-    let timer = time::ESP_NTPC::new();
+    let timer = time::EspNTPC::new();
     let btimer = Box::new(timer);
     nm.run(20, btimer.clone());
 
@@ -108,13 +108,15 @@ fn main() -> Result<()> {
     let mut builtin_led = PinDriver::output(pins.gpio2).unwrap();
 
     loop {
-        builtin_led.set_high().unwrap();
-        FreeRtos::delay_ms(50);
-
-        builtin_led.set_low().unwrap();
-        if let Some(ms) = btimer.now() {
-            println!("time: {:?}", ms);
+        #[cfg(debug_assertions)]
+        {
+            builtin_led.set_high().unwrap();
+            FreeRtos::delay_ms(50);
+            builtin_led.set_low().unwrap();
         }
+        // if let Some(ms) = btimer.now() {
+        //     println!("time: {:?}", ms);
+        // }
         FreeRtos::delay_ms(5000);
     }
 }
