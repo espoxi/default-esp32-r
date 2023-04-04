@@ -45,7 +45,7 @@ impl Effect for AlarmEffect {
     ) -> anyhow::Result<()> {
         if let Some(rt) = rt {
             if rt > config.at_ms_since_1970 {
-                //TODO: play actual alarm
+                //FIXME: the effects arent working as they should...
 
                 let seconds_to_alarm = config.at_ms_since_1970.as_secs_f32() - rt.as_secs_f32();
                 match config.alarm_type {
