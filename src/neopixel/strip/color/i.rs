@@ -1,3 +1,10 @@
+use serde::{Deserialize, Serialize};
+
+use std::{ops::{self}, convert::TryInto};
+use super::{super::LedColorOrder, ColorBitString};
+
+
+//TODO: make HSV also integer based !
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Color {
@@ -16,15 +23,15 @@ impl Color {
         }
     }
 
-    pub fn to_Color(&self) -> Color {
-        Color {
+    pub fn to_FColor(&self) -> super::f::Color {
+        super::f::Color {
             red: self.red as f32 / 255.0,
             green: self.green as f32 / 255.0,
             blue: self.blue as f32 / 255.0,
         }
     }
 
-    pub fn from_Color(Color: Color) -> Self {
+    pub fn from_FColor(Color: super::f::Color) -> Self {
         Self::from_f32(Color.red, Color.green, Color.blue)
     }
 
@@ -41,9 +48,9 @@ impl Color {
     }
 
     pub fn from_hex(hex: u32, order: &LedColorOrder) -> Self {
-        let red = (hex >> 16) & 0xFF;
-        let green = (hex >> 8) & 0xFF;
-        let blue = hex & 0xFF;
+        let red:u8 = ((hex >> 16) & 0xFF).try_into().unwrap();
+        let green:u8 = ((hex >> 8) & 0xFF).try_into().unwrap();
+        let blue:u8 = (hex & 0xFF).try_into().unwrap();
         match order {
             LedColorOrder::RGB => Self::new(red, green, blue),
             LedColorOrder::GRB => Self::new(green, red, blue),
@@ -178,7 +185,7 @@ impl Color {
             LedColorOrder::GRB => (self.green, self.red, self.blue),
         };
 
-        (((r * 255.0) as u32) << 16) | (((g * 255.0) as u32) << 8) | (b * 255.0) as u32
+        ((r as u32) << 16) | ((g as u32) << 8) | b as u32
     }
 
     pub fn to_bit_iter(&self, order: &LedColorOrder) -> impl Iterator<Item = bool> + '_ {
@@ -187,46 +194,28 @@ impl Color {
 }
 
 ///HSV color space (Hue, Saturation, Value)
-/// Hue: 0-360
-/// Saturation: 0-1
-/// Value: 0-1
 #[derive(Debug, Copy, Clone, PartialEq)]
-struct IHsv {
-    hue: f32,
-    saturation: f32,
-    value: f32,
+struct Hsv {
+    hue: u8,
+    saturation: u8,
+    value: u8,
 }
 
 #[allow(dead_code)]
-impl IHsv {
+impl Hsv {
     ///HSV color space (Hue, Saturation, Value)
-    /// Hue: 0-360
-    /// Saturation: 0-1
-    /// Value: 0-1
-    fn new(hue: f32, saturation: f32, value: f32) -> Self {
+    
+    fn new(hue: u8, saturation: u8, value: u8) -> Self {
         Self {
             hue,
             saturation,
             value,
         }
     }
+
+    // intger (u8) only color conversion between RGB and HSV
     pub fn to_rgb(&self) -> Color {
-        let h = self.hue.rem_euclid(360.0);
-        let s = self.saturation.min(1.0).max(0.0);
-        let v = self.value.min(1.0).max(0.0);
 
-        let c = v * s;
-        let x = c * (1.0 - ((h / 60.0).rem_euclid(2.0) - 1.0).abs());
-        let m = v - c;
-
-        let (r, g, b) = match h {
-            h if h < 60.0 => (c, x, 0.0),
-            h if h < 120.0 => (x, c, 0.0),
-            h if h < 180.0 => (0.0, c, x),
-            h if h < 240.0 => (0.0, x, c),
-            h if h < 300.0 => (x, 0.0, c),
-            _ => (c, 0.0, x),
-        };
 
         Color::new(r + m, g + m, b + m)
     }
@@ -237,9 +226,9 @@ impl ops::Add<Color> for Color {
 
     fn add(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red + _rhs.red).rem_euclid(1.0),
-            green: (self.green + _rhs.green).rem_euclid(1.0),
-            blue: (self.blue + _rhs.blue).rem_euclid(1.0),
+            red: self.red.wrapping_add(_rhs.red),
+            green: self.green.wrapping_add(_rhs.green),
+            blue: self.blue.wrapping_add(_rhs.blue),
         }
     }
 }
@@ -249,9 +238,9 @@ impl ops::Sub<Color> for Color {
 
     fn sub(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red - _rhs.red).rem_euclid(1.0000001),
-            green: (self.green - _rhs.green).rem_euclid(1.0000001),
-            blue: (self.blue - _rhs.blue).rem_euclid(1.0000001),
+            red: self.red.wrapping_sub(_rhs.red),
+            green: self.green.wrapping_sub(_rhs.green),
+            blue: self.blue.wrapping_sub(_rhs.blue),
         }
     }
 }
@@ -261,9 +250,12 @@ impl ops::Mul<Color> for Color {
 
     fn mul(self, _rhs: Color) -> Color {
         Color {
-            red: (self.red * _rhs.red).max(0.0).min(1.0),
-            green: (self.green * _rhs.green).max(0.0).min(1.0),
-            blue: (self.blue * _rhs.blue).max(0.0).min(1.0),
+            red: (self.red as u16 * _rhs.red as u16).clamp(0, 255).try_into().unwrap(),
+            green: (self.green as u16 * _rhs.green as u16)
+                .clamp(0, 255)
+                .try_into()
+                .unwrap(),
+            blue: (self.blue as u16 * _rhs.blue as u16).clamp(0, 255).try_into().unwrap(),
         }
     }
 }
@@ -273,9 +265,9 @@ impl ops::Mul<f32> for Color {
 
     fn mul(self, _rhs: f32) -> Color {
         Color {
-            red: (self.red * _rhs).max(0.0).min(1.0),
-            green: (self.green * _rhs).max(0.0).min(1.0),
-            blue: (self.blue * _rhs).max(0.0).min(1.0),
+            red: (self.red as f32 * _rhs).clamp(0.0, 255.0) as u8,
+            green: (self.green as f32 * _rhs).clamp(0.0, 255.0) as u8,
+            blue: (self.blue as f32 * _rhs).clamp(0.0, 255.0) as u8,
         }
     }
 }
