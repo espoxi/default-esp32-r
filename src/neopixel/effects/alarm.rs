@@ -106,42 +106,23 @@ impl Effect for AlarmEffect {
                                 dt,
                                 Some(rt),
                             )?;
-                        } else {
-                            if seconds_to_alarm < 3.0 && seconds_to_alarm % 1.0 < 0.4 {
-                                //red afterglow in last 3s
-                                SolidColorEffect::apply(
-                                    &super::solid::SolidColorConfig {
-                                        color: FColor::red(),
-                                        range: config.range.clone(),
+                        } else if seconds_to_alarm < 10.0{
+                            SolidColorEffect::apply(
+                                &super::solid::SolidColorConfig {
+                                    color: if seconds_to_alarm % 1.0 < 0.2 {
+                                        FColor::white()
+                                    } else if seconds_to_alarm < 3.0 && seconds_to_alarm % 1.0 < 0.4
+                                    {
+                                        FColor::red()
+                                    } else {
+                                        FColor::black()
                                     },
-                                    colors,
-                                    dt,
-                                    Some(rt),
-                                )?;
-                            }
-                            if seconds_to_alarm % 1.0 < 0.2 {
-                                //blink white
-                                SolidColorEffect::apply(
-                                    &super::solid::SolidColorConfig {
-                                        color: FColor::white(),
-                                        range: config.range.clone(),
-                                    },
-                                    colors,
-                                    dt,
-                                    Some(rt),
-                                )?;
-                            } else {
-                                //black
-                                SolidColorEffect::apply(
-                                    &super::solid::SolidColorConfig {
-                                        color: FColor::black(),
-                                        range: config.range.clone(),
-                                    },
-                                    colors,
-                                    dt,
-                                    Some(rt),
-                                )?;
-                            }
+                                    range: config.range.clone(),
+                                },
+                                colors,
+                                dt,
+                                Some(rt),
+                            )?;
                         }
                     }
                     AlarmType::Strobo => {
