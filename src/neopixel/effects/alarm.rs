@@ -74,7 +74,8 @@ impl Effect for AlarmEffect {
                         };
                         SolidColorEffect::apply(
                             &super::solid::SolidColorConfig {
-                                color: Color::new(red, green, blue),
+                                // color: Color::new(red, green, blue), //when f is default
+                                color: Color::from_f32(red, green, blue), //when i is default
                                 range: config.range.clone(),
                             },
                             colors,
