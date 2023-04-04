@@ -1,7 +1,7 @@
 use std::{ops::Range, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DurationSeconds};
+use serde_with::{serde_as, DurationMilliSeconds};
 
 use crate::neopixel::strip::color::FColor;
 
@@ -12,7 +12,7 @@ pub struct AlarmEffect;
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlarmConfig {
-    #[serde_as(as = "DurationSeconds<f64>")]
+    #[serde_as(as = "DurationMilliSeconds<u64>")]
     pub at_s_since_1970: Duration,
     pub alarm_type: AlarmType,
     pub range: Range<u16>,
